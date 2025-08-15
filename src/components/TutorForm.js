@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { db } from "../firebaseConfig";
+import axios from "axios";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 import {
@@ -32,6 +33,7 @@ const TutorForm = () => {
     { type: "multiple-choice", question: "", options: ["", ""], answer: "", media: null },
   ]);
 
+ // Add question
   const addQuestion = (type) => {
     const newQuestion = { type, media: null };
     if (type === "multiple-choice") newQuestion.options = ["", ""];
@@ -63,6 +65,27 @@ const TutorForm = () => {
     if (newIndex < 0 || newIndex >= updated.length) return;
     [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
     setQuestions(updated);
+  };
+
+  // --- CLOUDINARY MEDIA UPLOAD FUNCTION ---
+  const uploadMedia = async (file) => {
+    if (!file) return null;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET);
+
+      const cloudName = process.env.REACT_APP_CLOUDINARY_URL.split("@")[1];
+      const response = await axios.post(
+        `https://api.cloudinary.com/v1_1/${cloudName}/upload`,
+        formData
+      );
+      return response.data.secure_url;
+    } catch (err) {
+      console.error("Cloudinary upload error:", err);
+      alert("Failed to upload media!");
+      return null;
+    }
   };
 
   const validateQuestions = () => {
@@ -153,10 +176,21 @@ const TutorForm = () => {
     e.preventDefault();
     if (!validateQuestions()) return; // <-- stop submission if invalid
     try {
+      // Upload media for each question if needed
+      const questionsWithMediaUrls = await Promise.all(
+        questions.map(async (q) => {
+          if (q.media instanceof File) {
+            const url = await uploadMedia(q.media);
+            return { ...q, media: url };
+          }
+          return q;
+        })
+      );
+
       await addDoc(collection(db, "exams"), {
         title,
         duration: Number(duration),
-        questions,
+        questions: questionsWithMediaUrls,
         createdAt: serverTimestamp(),
       });
       alert("Exam saved!");
