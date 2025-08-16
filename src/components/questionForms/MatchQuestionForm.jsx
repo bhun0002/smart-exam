@@ -2,8 +2,9 @@ import React from 'react';
 import { Box, Button, Grid, TextField, Typography, IconButton } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 
-const MatchQuestionForm = ({ question, onChange }) => {
+const MatchQuestionForm = ({ question, onChange, readonly = false }) => {
   const handleMatchPairChange = (pairIndex, side, value) => {
+    if (readonly) return; // <-- disable editing
     const updatedMatchPairs = [...question.matchPairs];
     updatedMatchPairs[pairIndex][side] = value;
     onChange({
@@ -13,6 +14,7 @@ const MatchQuestionForm = ({ question, onChange }) => {
   };
 
   const addMatchPair = () => {
+    if (readonly) return; // <-- disable editing
     onChange({
       ...question,
       matchPairs: [...question.matchPairs, { left: "", right: "" }]
@@ -20,6 +22,7 @@ const MatchQuestionForm = ({ question, onChange }) => {
   };
 
   const deleteMatchPair = (pairIndex) => {
+    if (readonly) return; // <-- disable editing
     const updatedMatchPairs = [...question.matchPairs];
     updatedMatchPairs.splice(pairIndex, 1);
     onChange({
@@ -40,6 +43,7 @@ const MatchQuestionForm = ({ question, onChange }) => {
               value={pair.left}
               onChange={(e) => handleMatchPairChange(i, "left", e.target.value)}
               variant="outlined"
+              disabled={readonly} // <-- readonly disables input
             />
           </Grid>
           <Grid item xs={5}>
@@ -49,18 +53,22 @@ const MatchQuestionForm = ({ question, onChange }) => {
               value={pair.right}
               onChange={(e) => handleMatchPairChange(i, "right", e.target.value)}
               variant="outlined"
+              disabled={readonly} // <-- readonly disables input
             />
           </Grid>
           <Grid item xs={2}>
+          {!readonly && (
             <IconButton
               color="error"
               onClick={() => deleteMatchPair(i)}
             >
               <DeleteIcon />
             </IconButton>
+             )}
           </Grid>
         </Grid>
       ))}
+      {!readonly && (
       <Button
         startIcon={<AddIcon />}
         onClick={addMatchPair}
@@ -69,6 +77,7 @@ const MatchQuestionForm = ({ question, onChange }) => {
       >
         Add Pair
       </Button>
+      )}
     </Box>
   );
 };

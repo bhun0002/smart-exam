@@ -1,14 +1,45 @@
-import React from 'react';
-import { Box, TextField } from "@mui/material";
+import React from "react";
+import { Box, TextField, IconButton } from "@mui/material";
+import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 
-const ReasoningForm = ({ question, onChange }) => {
+const ReasoningForm = ({ question, onChange, readonly = false }) => {
+  const [preview, setPreview] = React.useState(null);
+  const fileInputRef = React.useRef(null);
+
   const handleQuestionChange = (field, value) => {
+    if (readonly) return; // <-- disable editing
     onChange({ ...question, [field]: value });
   };
 
-  const handleMediaChange = (file) => {
-    onChange({ ...question, media: file });
+  const deleteMedia = () => {
+    handleMediaChange(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  // Update media file and preview
+  const handleMediaChange = (file) => {
+    if (readonly) return; // <-- disable editing
+    onChange({
+      ...question,
+      media: file,
+    });
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPreview(null);
+    }
+  };
+  // Set preview if examData has media
+  React.useEffect(() => {
+    if (question.media && !(question.media instanceof File)) {
+      setPreview(question.media);
+    }
+  }, [question.media]);
 
   return (
     <>
@@ -21,16 +52,44 @@ const ReasoningForm = ({ question, onChange }) => {
         onChange={(e) => handleQuestionChange("question", e.target.value)}
         margin="normal"
         variant="outlined"
+        disabled={readonly} // <-- readonly disables input
       />
-      <TextField
-        fullWidth
-        type="file"
-        inputProps={{ accept: "image/*,video/*" }}
-        onChange={(e) => handleMediaChange(e.target.files[0])}
-        margin="normal"
-        variant="outlined"
-        sx={{ mt: 2 }}
-      />
+      {!readonly && (
+        <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
+          <TextField
+            fullWidth
+            type="file"
+            inputRef={fileInputRef} // added this line
+            inputProps={{ accept: "image/*,video/*" }}
+            onChange={(e) => handleMediaChange(e.target.files[0])}
+            margin="normal"
+            variant="outlined"
+          />
+          {preview && (
+            <IconButton color="error" onClick={deleteMedia}>
+              <DeleteIcon />
+            </IconButton>
+          )}
+        </Box>
+      )}
+      {/* Preview for image/video */}
+      {preview && (
+        <Box sx={{ mt: 2, textAlign: "center" }}>
+          {question.media.type?.startsWith("video") ? (
+            <video
+              src={preview}
+              controls
+              style={{ maxWidth: "100%", maxHeight: 200 }}
+            />
+          ) : (
+            <img
+              src={preview}
+              alt="Preview"
+              style={{ maxWidth: "100%", maxHeight: 200 }}
+            />
+          )}
+        </Box>
+      )}
       <TextField
         fullWidth
         label="Correct Answer"
@@ -40,6 +99,7 @@ const ReasoningForm = ({ question, onChange }) => {
         variant="outlined"
         sx={{ mt: 2 }}
         helperText="Provide a detailed explanation or a sample correct answer."
+        disabled={readonly} // <-- readonly disables input
       />
     </>
   );
