@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, orderBy, query, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, doc, updateDoc, where } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Modal } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import TutorForm from "./TutorForm"; // import your form component
+
 
 const styleModal = {
   position: "absolute",
@@ -30,7 +31,8 @@ const TutorExamList = () => {
   useEffect(() => {
     const fetchExams = async () => {
       try {
-        const examsCollection = collection(db, "exams");
+        
+        const examsCollection = query(collection(db, "exams"), where("isDeleted", "==", 0));
         const q = query(examsCollection, orderBy("createdAt", "desc"));
         const snapshot = await getDocs(q);
         const examsData = snapshot.docs.map(doc => ({
@@ -47,12 +49,28 @@ const TutorExamList = () => {
   }, []);
 
   // Delete exam
-  const handleDelete = async (id) => {
+  const handleSoftDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this exam?")) {
-      await deleteDoc(doc(db, "exams", id));
-      setExams(exams.filter(exam => exam.id !== id));
-    }
+        try {
+            const examRef = doc(db, "exams", id);
+            await updateDoc(examRef, { isDeleted: 1 }); // mark as deleted
+            setExams((prev) => prev.filter((exam) => exam.id !== id)); // remove from UI
+          } catch (error) {
+            console.error("Error deleting exam:", error);
+          }
+      } 
   };
+//   // 🔹 Fix missing isDeleted
+//   const handleFix = async () => {
+//     const snap = await getDocs(collection(db, "exams"));
+//     for (const d of snap.docs) {
+//       if (!d.data().hasOwnProperty("isDeleted")) {
+//         await updateDoc(doc(db, "exams", d.id), { isDeleted: 0 });
+//         console.log(`Fixed exam: ${d.id}`);
+//       }
+//     }
+//     alert("All missing isDeleted fields are now set to 0 ✅");
+//   };
 
   // Open modal to view exam
   const handleView = (exam) => {
@@ -64,6 +82,8 @@ const TutorExamList = () => {
     setOpenModal(false);
     setSelectedExam(null);
   };
+
+  
 
   return (
     <Box sx={{ padding: 4, bgcolor: "#f7f5f2", minHeight: "100vh" }}>
@@ -78,6 +98,13 @@ const TutorExamList = () => {
         >
           Add Exam
         </Button>
+        {/* <Button
+            variant="contained"
+            sx={{ bgcolor: "green", color: "white" }}
+            onClick={handleFix}
+          >
+            Fix Missing isDeleted
+          </Button> */}
       </Box>
 
       <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
@@ -113,7 +140,7 @@ const TutorExamList = () => {
                       size="small"
                       variant="outlined"
                       color="error"
-                      onClick={() => handleDelete(exam.id)}
+                      onClick={() => handleSoftDelete(exam.id)}
                     >
                       Delete
                     </Button>

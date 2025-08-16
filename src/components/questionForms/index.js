@@ -23,22 +23,23 @@ const QuestionRenderer = ({
   isFirst,
   isLast,
   onChange,
+  readonly,
   ...props
 }) => {
   const getQuestionComponent = () => {
     switch (question.type) {
       case 'multiple-choice':
-        return <MultipleChoiceForm question={question} onChange={onChange} />;
+        return <MultipleChoiceForm question={question} onChange={onChange} readonly={readonly} />;
       case 'match':
-        return <MatchQuestionForm question={question} onChange={onChange} />;
+        return <MatchQuestionForm question={question} onChange={onChange} readonly={readonly} />;
       case 'true-false':
-        return <TrueFalseForm question={question} onChange={onChange} />;
+        return <TrueFalseForm question={question} onChange={onChange} readonly={readonly}/>;
       case 'fill-blanks':
-        return <FillBlanksForm question={question} onChange={onChange} />;
+        return <FillBlanksForm question={question} onChange={onChange} readonly={readonly}/>;
       case 'short-answer':
-        return <ShortAnswerForm question={question} onChange={onChange} />;
+        return <ShortAnswerForm question={question} onChange={onChange} readonly={readonly}/>;
       case 'reasoning':
-        return <ReasoningForm question={question} onChange={onChange} />;
+        return <ReasoningForm question={question} onChange={onChange} readonly={readonly}/>;
       default:
         return null;
     }
@@ -51,9 +52,9 @@ const QuestionRenderer = ({
           Question {index + 1} ({question.type.replace("-", " ")})
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
-        <IconButton onClick={onMoveUp} disabled={isFirst}><ArrowUpwardIcon /></IconButton>
-        <IconButton onClick={onMoveDown} disabled={isLast}><ArrowDownwardIcon /></IconButton>
-        <IconButton onClick={onDelete} color="error"><DeleteIcon /></IconButton>
+        <IconButton onClick={onMoveUp} disabled={isFirst || readonly}><ArrowUpwardIcon /></IconButton>
+        <IconButton onClick={onMoveDown} disabled={isLast || readonly}><ArrowDownwardIcon /></IconButton>
+        <IconButton onClick={onDelete} color="error" disabled={readonly}><DeleteIcon /></IconButton>
       </Box>
       {getQuestionComponent()}
     </Card>

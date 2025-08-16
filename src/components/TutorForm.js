@@ -207,6 +207,7 @@ const TutorForm = ({ examData = null, readonly = false }) => {
       await addDoc(collection(db, "exams"), {
         title,
         duration: Number(duration),
+        isDeleted: 0,
         questions: questionsWithMediaUrls,
         createdAt: serverTimestamp(),
       });

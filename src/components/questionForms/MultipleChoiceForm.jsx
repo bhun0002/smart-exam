@@ -18,76 +18,73 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
 
   // Update question fields
   const handleQuestionChange = (field, value) => {
-    if (readonly) return; // <-- disable editing in readonly mode
-    onChange({
-      ...question,
-      [field]: value,
-    });
+    if (readonly) return;
+    onChange({ ...question, [field]: value });
   };
 
-  // Update an option's text
+  // Update an option
   const handleOptionChange = (index, value) => {
-    if (readonly) return; // <-- disable editing in readonly mode
+    if (readonly) return;
     const updatedOptions = [...question.options];
     updatedOptions[index] = value;
-    onChange({
-      ...question,
-      options: updatedOptions,
-    });
-    // Do NOT reset correct answer here to avoid blocking typing
+    onChange({ ...question, options: updatedOptions });
   };
 
-  // Add a new empty option
+  // Add option
   const addOption = () => {
-    if (readonly) return; // <-- disable editing in readonly mode
-    onChange({
-      ...question,
-      options: [...question.options, ""],
-    });
+    if (readonly) return;
+    onChange({ ...question, options: [...question.options, ""] });
   };
 
-  // Delete an option
+  // Delete option
   const deleteOption = (index) => {
-    if (readonly) return; // <-- disable editing in readonly mode
+    if (readonly) return;
     const updatedOptions = question.options.filter((_, i) => i !== index);
-    onChange({
-      ...question,
-      options: updatedOptions,
-    });
-
-    // Only reset correct answer if the deleted option was the current answer
+    onChange({ ...question, options: updatedOptions });
     if (question.answer === question.options[index]) {
       handleQuestionChange("answer", "");
     }
   };
 
-  // Update media file and preview
-
-  const deleteMedia = () => {
-    handleMediaChange(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
+  // Media handling
   const handleMediaChange = (file) => {
-    onChange({
-      ...question,
-      media: file,
-    });
-
+    if (readonly) return;
+    onChange({ ...question, media: file });
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
+      reader.onloadend = () => setPreview(reader.result);
       reader.readAsDataURL(file);
     } else {
       setPreview(null);
     }
   };
 
+  const deleteMedia = () => {
+    if (readonly) return;
+    handleMediaChange(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Set preview if question already has media
+  React.useEffect(() => {
+    if (!question.media) {
+      setPreview(null);
+      return;
+    }
+
+    if (question.media instanceof File) {
+      const reader = new FileReader();
+      reader.onloadend = () => setPreview(reader.result);
+      reader.readAsDataURL(question.media);
+    } else {
+      // Already a string (URL or base64 from DB)
+      setPreview(question.media);
+    }
+  }, [question.media]);
+
   return (
     <>
-      {/* Question text */}
+      {/* Question Text */}
       <TextField
         fullWidth
         label="Question Text"
@@ -97,46 +94,49 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
         onChange={(e) => handleQuestionChange("question", e.target.value)}
         margin="normal"
         variant="outlined"
-        disabled={readonly} // <-- readonly mode disables input
+        disabled={readonly}
       />
- {!readonly && (
-      <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
-        <TextField
-          fullWidth
-          type="file"
-          inputRef={fileInputRef} // added this line
-          inputProps={{ accept: "image/*,video/*" }}
-          onChange={(e) => handleMediaChange(e.target.files[0])}
-          margin="normal"
-          variant="outlined"
-          disabled={readonly} // <-- readonly mode disables input
-        />
-         {preview && (
-          <IconButton color="error" onClick={deleteMedia}>
-            <DeleteIcon />
-          </IconButton>
-        )}
-      </Box>
-)}
+
+      {/* File Upload (hide completely in readonly) */}
+      {!readonly && (
+        <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
+          <TextField
+            fullWidth
+            type="file"
+            inputRef={fileInputRef}
+            inputProps={{ accept: "image/*,video/*" }}
+            onChange={(e) => handleMediaChange(e.target.files[0])}
+            margin="normal"
+            variant="outlined"
+          />
+          {preview && (
+            <IconButton color="error" onClick={deleteMedia}>
+              <DeleteIcon />
+            </IconButton>
+          )}
+        </Box>
+      )}
+
+      {/* Preview for image/video */}
       {preview && (
-        <Box sx={{ mt: 1 }}>
-          <Typography variant="subtitle2">Preview:</Typography>
-          {question.media?.type?.startsWith("image/") ? (
-            <img
-              src={preview}
-              alt="Preview"
-              style={{ maxWidth: "100%", maxHeight: 200 }}
-            />
-          ) : (
+        <Box sx={{ mt: 2, textAlign: "center" }}>
+          {question.media.type?.startsWith("video") ? (
             <video
               src={preview}
               controls
               style={{ maxWidth: "100%", maxHeight: 200 }}
             />
+          ) : (
+            <img
+              src={preview}
+              alt="Preview"
+              style={{ maxWidth: "100%", maxHeight: 200 }}
+            />
           )}
         </Box>
       )}
-      {/* Options list */}
+
+      {/* Options */}
       <Box sx={{ mt: 2 }}>
         {question.options.map((opt, i) => (
           <Box key={i} sx={{ display: "flex", alignItems: "center", mt: 1 }}>
@@ -147,33 +147,35 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
               onChange={(e) => handleOptionChange(i, e.target.value)}
               margin="dense"
               variant="outlined"
-              disabled={readonly} // <-- readonly disables input
+              disabled={readonly}
             />
+            {/* Delete Option Button */}
             {!readonly && (
-            <IconButton
-              color="error"
-              onClick={() => deleteOption(i)}
-              sx={{ ml: 1 }}
-              disabled={question.options.length <= 1} // prevent deleting last option
-            >
-              <DeleteIcon />
-            </IconButton>
-             )}
+              <IconButton
+                color="error"
+                onClick={() => deleteOption(i)}
+                sx={{ ml: 1 }}
+                disabled={question.options.length <= 1}
+              >
+                <DeleteIcon />
+              </IconButton>
+            )}
           </Box>
         ))}
+        {/* Add Option Button */}
         {!readonly && (
-        <Button
-          startIcon={<AddIcon />}
-          onClick={addOption}
-          variant="outlined"
-          sx={{ mt: 1 }}
-        >
-          Add Option
-        </Button>
+          <Button
+            startIcon={<AddIcon />}
+            onClick={addOption}
+            variant="outlined"
+            sx={{ mt: 1 }}
+          >
+            Add Option
+          </Button>
         )}
       </Box>
 
-      {/* Correct Answer Dropdown */}
+      {/* Correct Answer */}
       <FormControl fullWidth sx={{ mt: 2 }}>
         <InputLabel id="correct-answer-label">Correct Answer</InputLabel>
         <Select
@@ -181,7 +183,7 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
           value={question.answer || ""}
           label="Correct Answer"
           onChange={(e) => handleQuestionChange("answer", e.target.value)}
-          disabled={readonly} // <-- readonly disables select
+          disabled={readonly}
         >
           {question.options.map((opt, i) => (
             <MenuItem key={i} value={opt}>
