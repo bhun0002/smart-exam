@@ -5,13 +5,13 @@ import { db } from "../firebaseConfig";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import {
-  Box,
-  Button,
-  TextField,
-  Alert,
-  Typography,
-  Paper,
-  Link
+    Box,
+    Button,
+    TextField,
+    Alert,
+    Typography,
+    Paper,
+    Link
 } from "@mui/material";
 import { useAuth } from '../AuthContext';
 
@@ -47,7 +47,7 @@ const TutorAdminLogin = () => {
             if (adminData.password === password && adminData.isApproved) {
                 if (adminData.isTutorAdmin) {
                     login({ email: adminData.email, role: 'tutorAdmin' });
-                    navigate('/tutor-admin-dashboard'); 
+                    navigate('/tutor-admin-dashboard');
                 } else {
                     setLoginError("You are not authorized to access this panel.");
                 }
@@ -61,9 +61,39 @@ const TutorAdminLogin = () => {
     };
 
     return (
-        <Box sx={{ maxWidth: 500, margin: '50px auto' }}>
-            <Paper elevation={3} sx={{ padding: 4, borderRadius: '16px', backgroundColor: '#e8f5e9' }}>
-                <Typography variant="h5" align="center" fontWeight="bold" color="#37474f" sx={{ mb: 2 }}>
+        <Box
+            sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '100vh',
+                background: 'linear-gradient(135deg, #FFD1DC, #B2EBF2)', // Soft gradient background
+                padding: 2,
+            }}
+        >
+            <Paper
+                elevation={12} // Increased elevation for a more prominent floating effect
+                sx={{
+                    padding: { xs: 3, md: 5 },
+                    borderRadius: '24px', // More rounded corners
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)', // Slightly transparent white
+                    maxWidth: '450px',
+                    width: '100%',
+                    boxShadow: '0 15px 35px rgba(0,0,0,0.2)', // Deeper shadow
+                    transition: 'all 0.4s ease-in-out',
+                    '&:hover': {
+                        transform: 'translateY(-8px)',
+                        boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
+                    },
+                }}
+            >
+                <Typography
+                    variant="h4"
+                    align="center"
+                    fontWeight="bold"
+                    color="#1a237e"
+                    sx={{ mb: 3 }}
+                >
                     Tutor Admin Sign In
                 </Typography>
                 <Box component="form" onSubmit={handleLogin} noValidate>
@@ -79,7 +109,16 @@ const TutorAdminLogin = () => {
                         autoFocus
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                        variant="outlined"
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                borderRadius: '12px',
+                                transition: 'border-color 0.3s',
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#673ab7', // Purple focus color
+                                },
+                            },
+                        }}
                     />
                     <TextField
                         margin="normal"
@@ -92,16 +131,48 @@ const TutorAdminLogin = () => {
                         autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                        variant="outlined"
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                borderRadius: '12px',
+                                transition: 'border-color 0.3s',
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#673ab7',
+                                },
+                            },
+                        }}
                     />
                     <Button
                         type="submit"
                         fullWidth
                         variant="contained"
-                        sx={{ mt: 3, py: 1.5, borderRadius: '12px', backgroundColor: '#42a5f5', '&:hover': { backgroundColor: '#1e88e5' } }}
+                        sx={{
+                            mt: 3,
+                            py: 1.5,
+                            borderRadius: '12px',
+                            backgroundColor: '#673ab7', // Purple button
+                            color: '#fff',
+                            fontWeight: 'bold',
+                            '&:hover': {
+                                backgroundColor: '#5e35b1',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                transform: 'translateY(-2px)',
+                            },
+                            transition: 'all 0.3s ease-in-out',
+                        }}
                     >
                         Sign In
                     </Button>
+                </Box>
+                {/* <Box sx={{ mt: 2, textAlign: 'center' }}>
+                    <Link component={RouterLink} to="/tutor-admin-register" sx={{ color: '#455a64', fontWeight: 'bold' }}>
+                        Don't have an account? Register here
+                    </Link>
+                </Box> */}
+                <Box sx={{ mt: 1, textAlign: 'center' }}>
+                    <Link component={RouterLink} to="/admin-login" sx={{ color: '#455a64', fontWeight: 'bold' }}>
+                        Are you a Master Admin? Login here
+                    </Link>
                 </Box>
             </Paper>
         </Box>

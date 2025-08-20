@@ -1,3 +1,5 @@
+// src/admin/AdminLogin.jsx
+
 import React, { useState } from 'react';
 import { db } from "../firebaseConfig";
 import { collection, getDocs, query, where } from "firebase/firestore";
@@ -66,22 +68,23 @@ const AdminLogin = () => {
                 justifyContent: 'center',
                 alignItems: 'center',
                 minHeight: '100vh',
-                backgroundColor: '#f8f9fa', // Lighter pastel background
+                background: 'linear-gradient(135deg, #FFDDC1, #C1FFD7)', // Soft pastel gradient
                 padding: 2,
             }}
         >
             <Paper
-                elevation={6}
+                elevation={12}
                 sx={{
                     padding: { xs: 3, md: 5 },
-                    borderRadius: '20px',
-                    backgroundColor: '#fff',
+                    borderRadius: '24px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
                     maxWidth: '450px',
                     width: '100%',
-                    boxShadow: '0 12px 25px rgba(0,0,0,0.08)',
-                    transition: 'all 0.3s ease-in-out',
+                    boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
+                    transition: 'all 0.4s ease-in-out',
                     '&:hover': {
-                      transform: 'translateY(-5px)',
+                        transform: 'translateY(-8px)',
+                        boxShadow: '0 25px 50px rgba(0,0,0,0.2)',
                     },
                 }}
             >
@@ -89,7 +92,7 @@ const AdminLogin = () => {
                     variant="h4"
                     align="center"
                     fontWeight="bold"
-                    color="#37474f"
+                    color="#455a64"
                     sx={{ mb: 3 }}
                 >
                     Master Admin Sign In
@@ -113,7 +116,7 @@ const AdminLogin = () => {
                                 borderRadius: '12px',
                                 transition: 'border-color 0.3s',
                                 '&.Mui-focused fieldset': {
-                                    borderColor: '#607d8b',
+                                    borderColor: '#607d8b', // Blue-grey focus color
                                 },
                             },
                         }}
@@ -148,11 +151,12 @@ const AdminLogin = () => {
                             mt: 3,
                             py: 1.5,
                             borderRadius: '12px',
-                            backgroundColor: '#607d8b', // Modern blue-grey
+                            backgroundColor: '#607d8b', // Blue-grey button
                             color: '#fff',
                             fontWeight: 'bold',
                             '&:hover': {
                                 backgroundColor: '#455a64',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                                 transform: 'translateY(-2px)',
                             },
                             transition: 'all 0.3s ease-in-out',
@@ -162,14 +166,14 @@ const AdminLogin = () => {
                     </Button>
                 </Box>
                 <Box sx={{ mt: 2, textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary">
-                        Don't have an account? <Link component={RouterLink} to="/admin-register" sx={{ color: '#455a64', fontWeight: 'bold' }}>Register here</Link>
-                    </Typography>
+                    <Link component={RouterLink} to="/admin-register" sx={{ color: '#455a64', fontWeight: 'bold' }}>
+                        Don't have an account? Register here
+                    </Link>
                 </Box>
-                <Box sx={{ mt: 2, textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary">
-                        Are You Tutor Admin? <Link component={RouterLink} to="/tutor-admin-login" sx={{ color: '#455a64', fontWeight: 'bold' }}>Login here</Link>
-                    </Typography>
+                <Box sx={{ mt: 1, textAlign: 'center' }}>
+                    <Link component={RouterLink} to="/tutor-admin-login" sx={{ color: '#455a64', fontWeight: 'bold' }}>
+                        Are you a Tutor Admin? Login here
+                    </Link>
                 </Box>
             </Paper>
         </Box>
