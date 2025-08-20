@@ -35,7 +35,7 @@ const TutorDashboard = () => {
               <Button
                 variant="contained"
                 color="primary"
-                onClick={() => navigate("/create-exam")}
+                onClick={() => navigate("/tutor-create-exam")}
               >
                 Go to Form
               </Button>
@@ -60,7 +60,7 @@ const TutorDashboard = () => {
               <Button
                 variant="outlined"
                 color="secondary"
-                onClick={() => navigate("/exam-list")}
+                onClick={() => navigate("/tutor-exam-list")}
               >
                 View Exams
               </Button>

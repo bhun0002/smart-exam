@@ -1,3 +1,5 @@
+// src/tutoradmin/TutorAdminDashboard.jsx
+
 import React, { useState, useEffect } from "react";
 import { db } from "../firebaseConfig";
 import {
@@ -12,19 +14,19 @@ import {
   where,
 } from "firebase/firestore";
 import { Box, Typography, Button } from "@mui/material";
-import AdminForm from "./AdminForm";
-import AdminList from "./AdminList";
-import { useAuth } from "../AuthContext";
+import TutorAdminForm from "./TutorAdminForm";
+import TutorAdminList from "./TutorAdminList";
+import { useAuth } from '../AuthContext';
 import { useNavigate } from "react-router-dom";
 
-const AdminDashboard = () => {
-  const [admins, setAdmins] = useState([]);
+const TutorAdminDashboard = () => {
+  const [tutors, setTutors] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
-  const adminsCollectionRef = collection(db, "admins");
+  const tutorsCollectionRef = collection(db, "tutors");
 
   const clearMessages = () => {
     setError("");
@@ -33,34 +35,34 @@ const AdminDashboard = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/admin-login");
+    navigate("/tutor-admin-login");
   };
 
-  const handleTutorPanelRedirect = () => {
-    navigate("/tutor-dashboard");
+  const handleMasterPanelRedirect = () => {
+    navigate("/admin-dashboard");
   };
 
   const validateEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  const getAdmins = async () => {
+  const getTutors = async () => {
     try {
       const q = query(
-        adminsCollectionRef,
+        tutorsCollectionRef,
         where("isDeleted", "!=", true),
         orderBy("createdAt", "desc")
       );
       const data = await getDocs(q);
-      setAdmins(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+      setTutors(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
     } catch (err) {
-      console.error("Error fetching admins:", err);
-      setError("Failed to fetch admins.");
+      console.error("Error fetching tutors:", err);
+      setError("Failed to fetch tutors.");
     }
   };
 
   useEffect(() => {
-    getAdmins();
+    getTutors();
   }, []);
 
   useEffect(() => {
@@ -72,7 +74,7 @@ const AdminDashboard = () => {
     }
   }, [success]);
 
-  const handleAddAdmin = async ({ name, email, password }) => {
+  const handleAddTutor = async ({ name, email, password }) => {
     clearMessages();
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError("Please fill in all fields.");
@@ -88,31 +90,29 @@ const AdminDashboard = () => {
     }
 
     try {
-      const q = query(adminsCollectionRef, where("email", "==", email));
+      const q = query(tutorsCollectionRef, where("email", "==", email));
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
-        setError("An admin with this email already exists.");
+        setError("A tutor with this email already exists.");
         return;
       }
-      await addDoc(adminsCollectionRef, {
+      await addDoc(tutorsCollectionRef, {
         name,
         email,
         password,
         isApproved: false,
         isDeleted: false,
-        isMasterAdmin: false,
-        isTutorAdmin: false,
         createdAt: serverTimestamp(),
       });
-      setSuccess("Admin registered successfully! They need to be approved.");
-      getAdmins();
+      setSuccess("Tutor added successfully! They need to be approved.");
+      getTutors();
     } catch (err) {
-      console.error("Error adding admin:", err);
-      setError("Failed to register admin. " + err.message);
+      console.error("Error adding tutor:", err);
+      setError("Failed to add tutor. " + err.message);
     }
   };
 
-  const handleUpdateAdmin = async (id, updatedData) => {
+  const handleUpdateTutor = async (id, updatedData) => {
     clearMessages();
     if (updatedData.name && !updatedData.name.trim()) {
       setError("Name cannot be empty.");
@@ -128,40 +128,40 @@ const AdminDashboard = () => {
     try {
       if (updatedData.email) {
         const q = query(
-          adminsCollectionRef,
+          tutorsCollectionRef,
           where("email", "==", updatedData.email),
           where("__name__", "!=", id)
         );
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
-          setError("Another admin with this email already exists.");
+          setError("Another tutor with this email already exists.");
           return;
         }
       }
-      const adminDoc = doc(db, "admins", id);
-      await updateDoc(adminDoc, updatedData);
-      setSuccess("Admin updated successfully!");
-      getAdmins();
+      const tutorDoc = doc(db, "tutors", id);
+      await updateDoc(tutorDoc, updatedData);
+      setSuccess("Tutor updated successfully!");
+      getTutors();
     } catch (err) {
-      console.error("Error updating admin:", err);
-      setError("Failed to update admin. " + err.message);
+      console.error("Error updating tutor:", err);
+      setError("Failed to update tutor. " + err.message);
     }
   };
 
-  const handleDeleteAdmin = async (id) => {
-    if (window.confirm("Are you sure you want to delete this admin?")) {
+  const handleDeleteTutor = async (id) => {
+    if (window.confirm("Are you sure you want to delete this tutor?")) {
       clearMessages();
       try {
-        const adminDoc = doc(db, "admins", id);
-        await updateDoc(adminDoc, {
+        const tutorDoc = doc(db, "tutors", id);
+        await updateDoc(tutorDoc, {
           isDeleted: true,
           deletedAt: serverTimestamp(),
         });
-        setSuccess("Admin deleted successfully!");
-        getAdmins();
+        setSuccess("Tutor deleted successfully!");
+        getTutors();
       } catch (err) {
-        console.error("Error deleting admin:", err);
-        setError("Failed to delete admin. " + err.message);
+        console.error("Error deleting tutor:", err);
+        setError("Failed to delete tutor. " + err.message);
       }
     }
   };
@@ -189,9 +189,9 @@ const AdminDashboard = () => {
         {user?.role === 'masterAdmin' && (
           <Button
             variant="contained"
-            onClick={handleTutorPanelRedirect}
+            onClick={handleMasterPanelRedirect}
             sx={{
-              backgroundColor: '#607d8b', // Blue-grey color
+              backgroundColor: '#607d8b', // Blue-grey for Master Admin button
               color: '#fff',
               borderRadius: '12px',
               fontWeight: 'bold',
@@ -200,7 +200,7 @@ const AdminDashboard = () => {
               },
             }}
           >
-            Go to Tutor Panel
+            Go to Master Admin Panel
           </Button>
         )}
         <Button
@@ -237,18 +237,17 @@ const AdminDashboard = () => {
           color="#37474f"
           sx={{ mb: 4 }}
         >
-          Master Admin Dashboard
+          Tutor Admin Dashboard
         </Typography>
-        <AdminForm
-          onAddAdmin={handleAddAdmin}
+        <TutorAdminForm
+          onAddTutor={handleAddTutor}
           error={error}
           success={success}
-          isDashboardForm={true}
         />
-        <AdminList
-          admins={admins}
-          onUpdateAdmin={handleUpdateAdmin}
-          onDeleteAdmin={handleDeleteAdmin}
+        <TutorAdminList
+          tutors={tutors}
+          onUpdateTutor={handleUpdateTutor}
+          onDeleteTutor={handleDeleteTutor}
           error={error}
           success={success}
         />
@@ -257,4 +256,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default TutorAdminDashboard;

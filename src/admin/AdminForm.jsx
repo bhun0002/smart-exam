@@ -71,6 +71,7 @@ const AdminForm = ({ onAddAdmin, isDashboardForm }) => {
           email,
           password,
           isApproved: false,
+          isDeleted: false,
           createdAt: serverTimestamp(),
         });
         

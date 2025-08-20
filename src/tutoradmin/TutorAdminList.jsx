@@ -1,3 +1,5 @@
+// src/tutoradmin/TutorAdminList.jsx
+
 import React, { useState } from "react";
 import {
   Box,
@@ -21,17 +23,16 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
 } from "@mui/icons-material";
-import { useAuth } from '../AuthContext'; 
 
-const AdminList = ({ admins, onUpdateAdmin, onDeleteAdmin, error, success }) => {
+const TutorAdminList = ({ tutors, onUpdateTutor, onDeleteTutor, error, success }) => {
   const [editingId, setEditingId] = useState(null);
   const [currentEditName, setCurrentEditName] = useState("");
   const [currentEditEmail, setCurrentEditEmail] = useState("");
 
-  const startEditing = (admin) => {
-    setEditingId(admin.id);
-    setCurrentEditName(admin.name);
-    setCurrentEditEmail(admin.email);
+  const startEditing = (tutor) => {
+    setEditingId(tutor.id);
+    setCurrentEditName(tutor.name);
+    setCurrentEditEmail(tutor.email);
   };
 
   const cancelEditing = () => {
@@ -41,43 +42,41 @@ const AdminList = ({ admins, onUpdateAdmin, onDeleteAdmin, error, success }) => 
   };
 
   const handleUpdate = (id) => {
-    onUpdateAdmin(id, { name: currentEditName, email: currentEditEmail });
+    onUpdateTutor(id, { name: currentEditName, email: currentEditEmail });
     cancelEditing();
   };
 
-  // 🐛 Fixed: This function is now flexible and takes the field name to update
-  const handleToggleChange = (id, fieldName, newStatus) => {
-    onUpdateAdmin(id, { [fieldName]: newStatus });
+  const handleToggleChange = (id, newIsApprovedStatus) => {
+    onUpdateTutor(id, { isApproved: newIsApprovedStatus });
   };
 
   return (
     <Paper elevation={3} sx={{ padding: 4, borderRadius: '16px', backgroundColor: '#fff3e0' }}>
       <Typography variant="h6" fontWeight="bold" color="#37474f" sx={{ mb: 2 }}>
-        Registered Admins
+        Registered Tutors
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
       <TableContainer>
         <Table sx={{ minWidth: 650 }}>
-          <TableHead sx={{ backgroundColor: '#f0f4c3' }}>
+          <TableHead sx={{ backgroundColor: '#e3f2fd' }}>
             <TableRow>
               <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Is Approved</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Is Tutor Admin</TableCell>
               <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {admins.length === 0 ? (
+            {tutors.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ fontStyle: 'italic' }}>No admins registered yet.</TableCell> {/* 🐛 Updated colspan */}
+                <TableCell colSpan={4} align="center" sx={{ fontStyle: 'italic' }}>No tutors registered yet.</TableCell>
               </TableRow>
             ) : (
-              admins.map((admin) => (
-                <TableRow key={admin.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+              tutors.map((tutor) => (
+                <TableRow key={tutor.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                   <TableCell component="th" scope="row">
-                    {editingId === admin.id ? (
+                    {editingId === tutor.id ? (
                       <TextField
                         value={currentEditName}
                         onChange={(e) => setCurrentEditName(e.target.value)}
@@ -85,11 +84,11 @@ const AdminList = ({ admins, onUpdateAdmin, onDeleteAdmin, error, success }) => 
                         size="small"
                       />
                     ) : (
-                      admin.name
+                      tutor.name
                     )}
                   </TableCell>
                   <TableCell>
-                    {editingId === admin.id ? (
+                    {editingId === tutor.id ? (
                       <TextField
                         value={currentEditEmail}
                         onChange={(e) => setCurrentEditEmail(e.target.value)}
@@ -97,43 +96,31 @@ const AdminList = ({ admins, onUpdateAdmin, onDeleteAdmin, error, success }) => 
                         size="small"
                       />
                     ) : (
-                      admin.email
+                      tutor.email
                     )}
                   </TableCell>
                   <TableCell>
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={!!admin.isApproved}
-                          onChange={(e) => handleToggleChange(admin.id, 'isApproved', e.target.checked)} // 🐛 Fixed: now sends the field name and value
+                          checked={!!tutor.isApproved}
+                          onChange={(e) => handleToggleChange(tutor.id, e.target.checked)}
                           color="primary"
                         />
                       }
-                      label={!!admin.isApproved ? "Approved" : "Not Approved"}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={!!admin.isTutorAdmin}
-                          onChange={(e) => handleToggleChange(admin.id, 'isTutorAdmin', e.target.checked)} // 🐛 Fixed: now sends the field name and value
-                          color="primary"
-                        />
-                      }
-                      label={!!admin.isTutorAdmin ? "Tutor Admin" : "Not Tutor Admin"}
+                      label={!!tutor.isApproved ? "Approved" : "Not Approved"}
                     />
                   </TableCell>
                   <TableCell align="center">
-                    {editingId === admin.id ? (
+                    {editingId === tutor.id ? (
                       <Box>
-                        <IconButton color="primary" onClick={() => handleUpdate(admin.id)}><SaveIcon /></IconButton>
+                        <IconButton color="primary" onClick={() => handleUpdate(tutor.id)}><SaveIcon /></IconButton>
                         <IconButton color="error" onClick={cancelEditing}><CancelIcon /></IconButton>
                       </Box>
                     ) : (
                       <Box>
-                        <IconButton color="info" onClick={() => startEditing(admin)}><EditIcon /></IconButton>
-                        <IconButton color="error" onClick={() => onDeleteAdmin(admin.id)}><DeleteIcon /></IconButton>
+                        <IconButton color="info" onClick={() => startEditing(tutor)}><EditIcon /></IconButton>
+                        <IconButton color="error" onClick={() => onDeleteTutor(tutor.id)}><DeleteIcon /></IconButton>
                       </Box>
                     )}
                   </TableCell>
@@ -147,4 +134,4 @@ const AdminList = ({ admins, onUpdateAdmin, onDeleteAdmin, error, success }) => 
   );
 };
 
-export default AdminList;
+export default TutorAdminList;

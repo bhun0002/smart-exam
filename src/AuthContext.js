@@ -5,37 +5,48 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const AuthContext = createContext(null);
 
 export const useAuth = () => {
-  return useContext(AuthContext);
+    return useContext(AuthContext);
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+    const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-  // Load user from session storage on initial load
-  useEffect(() => {
-    const storedUser = sessionStorage.getItem('masterAdminUser');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
+    // Use a single, generic key for all authenticated users
+    const userStorageKey = 'authenticatedUser';
 
-  const login = (userData) => {
-    setUser(userData);
-    // Store user data in session storage to persist on page refresh
-    sessionStorage.setItem('masterAdminUser', JSON.stringify(userData));
-  };
+    // Load user from session storage on initial load
+    useEffect(() => {
+        try {
+            const storedUser = sessionStorage.getItem(userStorageKey);
+            if (storedUser) {
+                setUser(JSON.parse(storedUser));
+            }
+        } catch (error) {
+            console.error("Failed to parse user data from session storage.", error);
+            sessionStorage.removeItem(userStorageKey); // Clear corrupted data
+        }
+        setIsLoading(false);
+    }, []);
 
-  const logout = () => {
-    setUser(null);
-    // Clear user data from session storage
-    sessionStorage.removeItem('masterAdminUser');
-  };
+    const login = (userData) => {
+        setUser(userData);
+        // Store user data (including their role) in session storage
+        sessionStorage.setItem(userStorageKey, JSON.stringify(userData));
+    };
 
-  const value = {
-    user,
-    login,
-    logout,
-  };
+    const logout = () => {
+        setUser(null);
+        // Clear user data from session storage
+        sessionStorage.removeItem(userStorageKey);
+    };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    const value = {
+        user,
+        login,
+        logout,
+        isLoading,
+    };
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
