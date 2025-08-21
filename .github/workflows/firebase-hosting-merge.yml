@@ -4,7 +4,7 @@ name: Deploy to Firebase Hosting on merge
 on:
   push:
     branches:
-      - main   # <-- change if your main branch is master
+      - main   # change if your default branch is master
 
 jobs:
   build_and_deploy:
@@ -14,18 +14,16 @@ jobs:
       # 1️⃣ Checkout your repository
       - uses: actions/checkout@v4
 
-      # 2️⃣ Setup Node.js (use stable version, e.g., 20)
+      # 2️⃣ Setup Node.js (LTS is safest, React 18 works fine on 18 or 20)
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
+          cache: 'npm'
 
-      # 3️⃣ Install dependencies (ignore peer deps)
+      # 3️⃣ Install dependencies (clean install from package-lock.json)
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
-
-      - name: List installed node modules
-        run: ls -la node_modules/.bin
+        run: npm ci
 
       # 4️⃣ Build React project
       - name: Build React App
