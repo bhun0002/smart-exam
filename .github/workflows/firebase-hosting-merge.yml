@@ -11,7 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci
+      # Setup Node.js
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      # Install dependencies (ignore peer deps)
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+      
       - run: npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
