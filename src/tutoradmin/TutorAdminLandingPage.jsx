@@ -13,19 +13,24 @@ const TutorAdminLandingPage = () => {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: '#e0f7fa', // Light blue pastel background
+        background: 'linear-gradient(135deg, #B3E5FC, #FFF9C4)', // Updated pastel gradient
         padding: 4,
         textAlign: 'center',
       }}
     >
       <Paper
-        elevation={6}
+        elevation={12} // Increased elevation for more prominent shadow
         sx={{
           padding: { xs: 3, md: 6 },
-          borderRadius: '20px',
-          backgroundColor: '#fff',
+          borderRadius: '24px', // Consistent border radius with AdminLogin
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
           maxWidth: '600px',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+          boxShadow: '0 15px 35px rgba(0,0,0,0.1)', // Initial box shadow
+          transition: 'all 0.4s ease-in-out', // Smooth transition
+          '&:hover': {
+            transform: 'translateY(-8px)', // Lift effect on hover
+            boxShadow: '0 25px 50px rgba(0,0,0,0.2)', // Larger shadow on hover
+          },
         }}
       >
         <Typography
@@ -51,24 +56,28 @@ const TutorAdminLandingPage = () => {
             variant="contained"
             size="large"
             sx={{
-              backgroundColor: '#b39ddb', // Pastel purple
+              backgroundColor: '#607d8b', // Consistent button color
               color: '#fff',
               py: 1.5,
               px: 4,
               borderRadius: '12px',
+              fontWeight: 'bold', // Consistent font weight
+              transition: 'all 0.3s ease-in-out', // Smooth transition
               '&:hover': {
-                backgroundColor: '#9575cd',
+                backgroundColor: '#455a64',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                transform: 'translateY(-2px)', // Lift effect on hover
               },
             }}
           >
             Tutor Admin Login
           </Button>
         </Link>
-        
+
         <Box sx={{ mt: 4 }}>
           <Typography variant="body1" color="#757575">
             Are you a Master Admin?
-            <Link component={RouterLink} to="/admin-login" sx={{ ml: 1, color: '#42a5f5', fontWeight: 'bold' }}>
+            <Link component={RouterLink} to="/admin-login" sx={{ ml: 1, color: '#455a64', fontWeight: 'bold' }}> {/* Consistent link color and weight */}
               Master Admin Login
             </Link>
           </Typography>

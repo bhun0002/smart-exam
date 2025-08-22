@@ -4,9 +4,10 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import NoPageFound from "./components/NoPageFound";
 
-import TutorDashboard from "./components/TutorDashboard";
-import TutorForm from "./components/TutorForm";
-import TutorExamList from "./components/TutorExamList";
+// Tutor Components
+import TutorDashboard from "./tutor/TutorDashboard";
+import TutorForm from "./tutor/TutorForm";
+import TutorExamList from "./tutor/TutorExamList";
 
 // Admin Components
 import AdminAuthPage from "./admin/AdminAuthPage"; // New import
@@ -28,21 +29,33 @@ const App = () => {
         <Route path="*" element={<NoPageFound />} />
 
         {/* Tutor Routes */}
-        {/* Default landing page */}
-        {/* <Route path="/" element={<TutorDashboard />} /> */}
-
-        {/* Dashboard page */}
-        <Route path="/tutor-dashboard" element={<TutorDashboard />} />
-
-        {/* Exam creation form */}
-        <Route path="/tutor-create-exam" element={<TutorForm />} />
-
-        {/* List of exams */}
-        <Route path="/tutor-exam-list" element={<TutorExamList />} />
+        {/* Protected Tutor Route */}
+        <Route
+          path="/tutor-dashboard"
+          element={
+            <ProtectedRoute requiredRole="tutor">
+              <TutorDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor-create-exam"
+          element={
+            <ProtectedRoute requiredRole="tutor">
+              <TutorForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor-exam-list"
+          element={
+            <ProtectedRoute requiredRole="tutor">
+              <TutorExamList />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Master Admin Routes */}
-        {/* Admin Login as the Default Landing Page */}
-        {/* <Route path="/" element={<AdminLogin />} /> */}
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin-register" element={<AdminForm />} />
 
