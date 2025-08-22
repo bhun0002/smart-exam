@@ -1,16 +1,30 @@
 // src/components/FillBlanksForm.jsx
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box, TextField, IconButton, Card, CardContent, Typography } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon, InsertPhoto as InsertPhotoIcon } from "@mui/icons-material";
 
-const FillBlanksForm = ({ question, onChange, readonly = false }) => {
-    const [preview, setPreview] = React.useState(null);
-    const fileInputRef = React.useRef(null);
+// ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
+const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
+    const [preview, setPreview] = useState(null);
+    const fileInputRef = useRef(null);
 
+    // UPDATED: Function to handle changes and clear errors
     const handleQuestionChange = (field, value) => {
         if (readonly) return;
         onChange({ ...question, [field]: value });
+
+        // Construct the unique ID for the field
+        const fieldId = `question-${index}-${field}`;
+        
+        // Clear the error for this field if it exists
+        if (fieldErrors[fieldId]) {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[fieldId];
+                return newErrors;
+            });
+        }
     };
 
     const deleteMedia = () => {
@@ -36,11 +50,15 @@ const FillBlanksForm = ({ question, onChange, readonly = false }) => {
         }
     };
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (question.media && !(question.media instanceof File)) {
             setPreview(question.media);
         }
     }, [question.media]);
+
+    // Define unique IDs based on the question index
+    const questionId = `question-${index}-question-text`;
+    const answerId = `question-${index}-answer`;
 
     return (
         <Card
@@ -69,8 +87,11 @@ const FillBlanksForm = ({ question, onChange, readonly = false }) => {
                     onChange={(e) => handleQuestionChange("question", e.target.value)}
                     margin="normal"
                     variant="outlined"
-                    helperText="Use underscores '__' to indicate a blank."
+                    helperText={fieldErrors[questionId] || "Use underscores '__' to indicate a blank."}
                     disabled={readonly}
+                    // ADDED: `id` and `error` props for validation
+                    id={questionId}
+                    error={!!fieldErrors[questionId]}
                     sx={{
                         '& .MuiOutlinedInput-root.Mui-disabled': {
                             '& fieldset': {
@@ -139,6 +160,10 @@ const FillBlanksForm = ({ question, onChange, readonly = false }) => {
                     onChange={(e) => handleQuestionChange("answer", e.target.value)}
                     margin="normal"
                     variant="outlined"
+                    // ADDED: `id`, `error`, and `helperText` props for validation
+                    id={answerId}
+                    error={!!fieldErrors[answerId]}
+                    helperText={fieldErrors[answerId] || "Separate multiple answers with a comma. e.g. answer1, answer2"}
                     sx={{
                         mt: 2,
                         '& .MuiOutlinedInput-root.Mui-disabled': {
