@@ -20,7 +20,10 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci   # ⬅️ ensures react-scripts is installed
+        run: |
+          npm install --legacy-peer-deps
+          # Ensure react-scripts dependencies are satisfied
+          npm install ajv@6.12.6 ajv-keywords@3.5.2 --legacy-peer-deps
 
       - name: Verify react-scripts is available
         run: ls -la node_modules/.bin | grep react-scripts
