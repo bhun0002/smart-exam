@@ -13,15 +13,3 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: |
-          npm install --legacy-peer-deps
-          # Ensure react-scripts dependencies are satisfied
-          npm install ajv@6.12.6 ajv-keywords@3.5.2 --legacy-peer-deps
-
