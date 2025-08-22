@@ -24,6 +24,9 @@ jobs:
           npm install --legacy-peer-deps
           # Ensure react-scripts dependencies are satisfied
           npm install ajv@6.12.6 ajv-keywords@3.5.2 --legacy-peer-deps
+          
+      - name: Build project
+        run: CI=false npm run build
 
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
