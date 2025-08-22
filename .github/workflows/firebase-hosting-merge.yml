@@ -25,16 +25,3 @@ jobs:
           # Ensure react-scripts dependencies are satisfied
           npm install ajv@6.12.6 ajv-keywords@3.5.2 --legacy-peer-deps
 
-      - name: Verify react-scripts is available
-        run: ls -la node_modules/.bin | grep react-scripts
-
-      - name: Build React app
-        run: npm run build
-
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ONLINEEXAMTOO }}
-          channelId: live
-          projectId: onlineexamtoo
