@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebaseConfig";
 import axios from "axios";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import QuestionRenderer from "./questionForms";
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
+import QuestionRenderer from "./questionForms"; // Ensure this path is correct
+import { motion } from 'framer-motion';
 
 import {
   Box,
@@ -16,7 +17,9 @@ import {
   Typography,
   Paper,
   Zoom,
-  InputAdornment, // Added InputAdornment for the integrated icon
+  InputAdornment,
+  Snackbar,
+  Alert as MuiAlert,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -26,40 +29,81 @@ import {
 } from "@mui/icons-material";
 import { List, arrayMove } from "react-movable";
 
-// New, softer pastel colors
+const MotionBox = motion(Box);
+
 const questionTypeColors = {
-  "multiple-choice": "#e3f2fd", // Lighter blue
-  "true-false": "#e8f5e9", // Lighter green
-  "match": "#fffde7", // Lighter yellow
-  "fill-blanks": "#f3e5f5", // Lighter purple
-  "short-answer": "#fbe9e7", // Lighter coral
-  "reasoning": "#ede7f6", // Lighter lavender
+  "multiple-choice": "#e3f2fd",
+  "true-false": "#e8f5e9",
+  "match": "#fffde7",
+  "fill-blanks": "#f3e5f5",
+  "short-answer": "#fbe9e7",
+  "reasoning": "#ede7f6",
 };
 
-const TutorForm = ({ examData = null, readonly = false }) => {
-  // --- Form state ---
+const generateUniqueId = () => Math.random().toString(36).substring(2, 9);
+
+const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
   const [title, setTitle] = useState(examData?.title || "");
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [isSnackbarOpen, setIsSnackbarOpen] = useState(false);
   const [duration, setDuration] = useState(examData?.duration || "");
   const [questions, setQuestions] = useState(
     examData?.questions || [
-      { type: "multiple-choice", question: "", options: ["", ""], answer: "", media: null },
+      {
+        type: "multiple-choice",
+        question: "",
+        options: [
+          { id: generateUniqueId(), text: "" },
+          { id: generateUniqueId(), text: "" },
+        ],
+        answer: "",
+        media: null,
+      },
     ]
   );
   const [showScroll, setShowScroll] = useState(false);
   const [questionNumber, setQuestionNumber] = useState("");
-  // New state for handling in-line validation error
   const [searchError, setSearchError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  // Update state if examData changes (for modal view)
+  const handleCloseSnackbar = () => {
+    setIsSnackbarOpen(false);
+  };
+
   useEffect(() => {
     if (examData) {
       setTitle(examData.title);
       setDuration(examData.duration);
-      setQuestions(examData.questions);
+      const transformedQuestions = examData.questions.map(q => {
+        if (q.type === 'multiple-choice' && q.options.every(opt => typeof opt === 'string')) {
+          return {
+            ...q,
+            options: q.options.map(text => ({ id: generateUniqueId(), text })),
+          };
+        }
+        return q;
+      });
+      setQuestions(transformedQuestions);
+    } else {
+      // Reset form fields when no examData is provided (for "Create" mode or initial load)
+      setTitle("");
+      setDuration("");
+      setQuestions([
+        {
+          type: "multiple-choice",
+          question: "",
+          options: [
+            { id: generateUniqueId(), text: "" },
+            { id: generateUniqueId(), text: "" },
+          ],
+          answer: "",
+          media: null,
+        },
+      ]);
     }
-  }, [examData]);
+  }, [examData]); // Re-run when examData changes
 
-  // Handle "Go to Top" button visibility
   const checkScrollTop = () => {
     if (!showScroll && window.pageYOffset > 400) {
       setShowScroll(true);
@@ -72,13 +116,10 @@ const TutorForm = ({ examData = null, readonly = false }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // UPDATED function to scroll to a specific question
   const scrollToQuestion = (number) => {
     const parsedNumber = parseInt(number, 10);
-    // Clear previous error
     setSearchError("");
 
-    // Input validation: check if the number is valid
     if (isNaN(parsedNumber) || parsedNumber < 1 || parsedNumber > questions.length) {
       setSearchError(`Please enter a number from 1 to ${questions.length}.`);
       return;
@@ -97,11 +138,15 @@ const TutorForm = ({ examData = null, readonly = false }) => {
     };
   }, [showScroll]);
 
-  // Add question
   const addQuestion = (type) => {
     if (readonly) return;
     const newQuestion = { type, media: null };
-    if (type === "multiple-choice") newQuestion.options = ["", ""];
+    if (type === "multiple-choice") {
+      newQuestion.options = [
+        { id: generateUniqueId(), text: "" },
+        { id: generateUniqueId(), text: "" },
+      ];
+    }
     if (type === "true-false") newQuestion.options = ["True", "False"];
     if (["fill-blanks", "short-answer", "reasoning"].includes(type)) newQuestion.options = [];
     if (type !== "match") newQuestion.question = "";
@@ -135,7 +180,6 @@ const TutorForm = ({ examData = null, readonly = false }) => {
     setQuestions(updated);
   };
 
-  // --- CLOUDINARY MEDIA UPLOAD FUNCTION ---
   const uploadMedia = async (file) => {
     if (readonly || !file) return null;
     try {
@@ -151,101 +195,101 @@ const TutorForm = ({ examData = null, readonly = false }) => {
       return response.data.secure_url;
     } catch (err) {
       console.error("Cloudinary upload error:", err);
-      alert("Failed to upload media!");
+      alert("Failed to upload media!"); // Consider using a Snackbar instead of alert
       return null;
     }
   };
 
   const validateQuestions = () => {
-    if (readonly) return false; // No validation in readonly mode
+    if (readonly) return null;
 
-    // Validate exam title and duration
-    if (!title || title.trim() === "" || !duration || duration <= 0) {
-      alert("Please enter a valid Exam Title and Duration.");
-      return false;
+    if (!title || title.trim() === "") {
+      return { message: "Please enter a valid Exam Title.", fieldId: "exam-title" };
+    }
+    if (!duration || duration <= 0) {
+      return { message: "Please enter a valid Exam Duration.", fieldId: "exam-duration" };
     }
 
-    // Validate at least one question exists
     if (questions.length === 0) {
-      alert("Add at least one question to save the exam.");
-      return false;
+      return { message: "Add at least one question to save the exam.", fieldId: "add-question-buttons" };
     }
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
+      const questionId = `question-${i}`;
 
-      // Non-match questions must have question text
       if (q.type !== "match" && (!q.question || q.question.trim() === "")) {
-        alert(`Question ${i + 1}: Question text cannot be empty.`);
-        return false;
+        return { message: `Question ${i + 1}: Question text cannot be empty.`, fieldId: `${questionId}-question-text` };
       }
 
-      // Multiple-choice: at least 2 options, all non-empty + answer non-empty
       if (q.type === "multiple-choice") {
         if (!q.options || q.options.length < 2) {
-          alert(`Question ${i + 1}: Multiple-choice questions must have at least 2 options.`);
-          return false;
+          return { message: `Question ${i + 1}: Multiple-choice questions must have at least 2 options.`, fieldId: `${questionId}-options` };
         }
         for (let j = 0; j < q.options.length; j++) {
-          if (!q.options[j] || q.options[j].trim() === "") {
-            alert(`Question ${i + 1}: Option ${j + 1} cannot be empty.`);
-            return false;
+          if (!q.options[j].text || q.options[j].text.trim() === "") {
+            return { message: `Question ${i + 1}: Option ${j + 1} cannot be empty.`, fieldId: `${questionId}-option-${j}` };
           }
         }
         if (!q.answer || q.answer.trim() === "") {
-          alert(`Question ${i + 1}: Correct answer cannot be empty.`);
-          return false;
+          return { message: `Question ${i + 1}: A correct answer must be selected.`, fieldId: `${questionId}-answer` };
         }
       }
 
-      // True/False: answer required
       if (q.type === "true-false") {
         if (!q.question || q.question.trim() === "") {
-          alert(`Question ${i + 1}: Question text cannot be empty.`);
-          return false;
+          return { message: `Question ${i + 1}: Question text cannot be empty.`, fieldId: `${questionId}-question-text` };
         }
         if (!q.answer || q.answer.trim() === "") {
-          alert(`Question ${i + 1}: Correct answer cannot be empty.`);
-          return false;
+          return { message: `Question ${i + 1}: Correct answer must be selected.`, fieldId: `${questionId}-answer` };
         }
       }
 
-      // Fill-in-the-blanks, Short Answer, Reasoning: question + answer required
       if (["fill-blanks", "short-answer", "reasoning"].includes(q.type)) {
         if (!q.question || q.question.trim() === "") {
-          alert(`Question ${i + 1}: Question text cannot be empty.`);
-          return false;
+          return { message: `Question ${i + 1}: Question text cannot be empty.`, fieldId: `${questionId}-question-text` };
         }
         if (!q.answer || q.answer.trim() === "") {
-          alert(`Question ${i + 1}: Correct answer cannot be empty.`);
-          return false;
+          return { message: `Question ${i + 1}: Answer cannot be empty.`, fieldId: `${questionId}-answer` };
         }
       }
 
-      // Match questions: all pairs must have both left/right non-empty
       if (q.type === "match") {
         if (!q.matchPairs || q.matchPairs.length === 0) {
-          alert(`Question ${i + 1}: Add at least one matching pair.`);
-          return false;
+          return { message: `Question ${i + 1}: Add at least one matching pair.`, fieldId: `${questionId}-match-pairs` };
         }
         for (let k = 0; k < q.matchPairs.length; k++) {
           const pair = q.matchPairs[k];
           if (!pair.left || pair.left.trim() === "" || !pair.right || pair.right.trim() === "") {
-            alert(`Question ${i + 1}: Match pair ${k + 1} cannot have empty fields.`);
-            return false;
+            return { message: `Question ${i + 1}: Match pair ${k + 1} cannot have empty fields.`, fieldId: `${questionId}-match-pair-${k}` };
           }
         }
       }
     }
 
-    return true; // All validations passed
+    return null;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateQuestions()) return; // <-- stop submission if invalid
+    setFormError("");
+    setFieldErrors({});
+
+    if (readonly) return; // Prevent submission in read-only mode
+
+    const validationError = validateQuestions();
+    if (validationError) {
+      setFormError(validationError.message);
+      setFieldErrors({ [validationError.fieldId]: validationError.message });
+      const firstInvalidField = document.getElementById(validationError.fieldId);
+      if (firstInvalidField) {
+        firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstInvalidField.focus();
+      }
+      return;
+    }
+
     try {
-      // Upload media for each question if needed
       const questionsWithMediaUrls = await Promise.all(
         questions.map(async (q) => {
           if (q.media instanceof File) {
@@ -256,25 +300,55 @@ const TutorForm = ({ examData = null, readonly = false }) => {
         })
       );
 
-      await addDoc(collection(db, "exams"), {
+      const examDataToSave = {
         title,
         duration: Number(duration),
         isDeleted: 0,
         questions: questionsWithMediaUrls,
-        createdAt: serverTimestamp(),
-      });
-      alert("Exam saved!");
-      window.location.reload();
+      };
+
+      if (examData && examData.id) {
+        // EDITING: Update the existing document
+        const examRef = doc(db, "exams", examData.id);
+        await updateDoc(examRef, {
+          ...examDataToSave,
+          updatedAt: serverTimestamp(),
+        });
+        setSnackbarMessage("Exam updated successfully! ✅");
+      } else {
+        // CREATING: Add a new document
+        await addDoc(collection(db, "exams"), {
+          ...examDataToSave,
+          createdAt: serverTimestamp(),
+        });
+        setSnackbarMessage("Exam saved successfully! ✅");
+      }
+      
+      setIsSnackbarOpen(true);
+
+      // Call onSaveSuccess if provided (for parent component to close modal and refresh list)
+      if (onSaveSuccess) {
+        // Delay calling onSaveSuccess to allow Snackbar to be visible for a moment
+        setTimeout(() => {
+            onSaveSuccess();
+        }, 2000); 
+      } else {
+        // Only reload if it's a standalone form and not handled by a parent (e.g., /create-exam page)
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
+
     } catch (err) {
       console.error("Firestore error:", err);
-      alert("Error saving exam! " + err.message);
+      setFormError("Error saving exam! " + err.message);
     }
   };
 
   return (
     <Box
       sx={{
-        background: 'linear-gradient(135deg, #FFD1DC, #B2EBF2)', // Pastel gradient
+        background: 'linear-gradient(135deg, #FFD1DC, #B2EBF2)',
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
@@ -282,10 +356,10 @@ const TutorForm = ({ examData = null, readonly = false }) => {
     >
       <Paper elevation={12} sx={{ padding: { xs: 3, md: 5 }, borderRadius: '24px', backgroundColor: '#ffffff' }}>
         <Typography variant="h4" gutterBottom textAlign="center" fontWeight="bold" color="#37474f">
-          {readonly ? "View Exam" : "Create a New Exam"}
+          {readonly ? "View Exam" : (examData ? "Edit Exam" : "Create a New Exam")}
         </Typography>
         <Typography variant="subtitle1" gutterBottom textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
-          {readonly ? "You are viewing this exam in read-only mode." : "Fill in the details and add questions to build your exam."}
+          {readonly ? "You are viewing this exam in read-only mode." : (examData ? "Modify the exam details and questions." : "Fill in the details and add questions to build your exam.")}
         </Typography>
 
         {/* Exam title and duration */}
@@ -295,12 +369,20 @@ const TutorForm = ({ examData = null, readonly = false }) => {
               <Grid item xs={12} md={8}>
                 <TextField
                   label="Exam Title"
+                  id="exam-title"
                   fullWidth
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (fieldErrors['exam-title']) {
+                      setFieldErrors(prev => ({ ...prev, 'exam-title': '' }));
+                    }
+                  }}
                   required
                   variant="outlined"
                   disabled={readonly}
+                  error={!!fieldErrors['exam-title']}
+                  helperText={fieldErrors['exam-title']}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '12px',
@@ -311,13 +393,22 @@ const TutorForm = ({ examData = null, readonly = false }) => {
               <Grid item xs={12} md={4}>
                 <TextField
                   label="Duration (minutes)"
+                  id="exam-duration"
                   fullWidth
                   type="number"
                   value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
+                  onChange={(e) => {
+                    const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                    setDuration(numericValue);
+                    if (fieldErrors['exam-duration']) {
+                      setFieldErrors(prev => ({ ...prev, 'exam-duration': '' }));
+                    }
+                  }}
                   required
                   variant="outlined"
                   disabled={readonly}
+                  error={!!fieldErrors['exam-duration']}
+                  helperText={fieldErrors['exam-duration']}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '12px',
@@ -331,7 +422,7 @@ const TutorForm = ({ examData = null, readonly = false }) => {
 
         {/* Question type buttons and search */}
         {!readonly && (
-          <Box sx={{ mt: 5, mb: 3 }}>
+          <Box sx={{ mt: 5, mb: 3 }} id="add-question-buttons">
             <Typography variant="h6" gutterBottom fontWeight="bold" color="#546e7a">
               Add Questions
             </Typography>
@@ -347,7 +438,7 @@ const TutorForm = ({ examData = null, readonly = false }) => {
                   sx={{
                     textTransform: "capitalize",
                     backgroundColor: questionTypeColors[type],
-                    color: "#455a64", // Darker text for readability
+                    color: "#455a64",
                     borderRadius: '12px',
                     fontWeight: 'bold',
                     transition: 'all 0.3s ease-in-out',
@@ -364,7 +455,6 @@ const TutorForm = ({ examData = null, readonly = false }) => {
               ))}
             </Box>
 
-            {/* UPDATED Search Input with integrated icon and live scrolling */}
             <Box sx={{ mt: 3, display: 'flex', alignItems: 'center' }}>
               <TextField
                 label="Jump to Question #"
@@ -398,23 +488,45 @@ const TutorForm = ({ examData = null, readonly = false }) => {
             values={questions}
             onChange={({ oldIndex, newIndex }) => setQuestions(arrayMove(questions, oldIndex, newIndex))}
             renderList={({ children, props }) => <Box {...props}>{children}</Box>}
-            renderItem={({ value, props, index }) => (
-              <QuestionRenderer
-                question={value}
-                index={index}
-                {...props}
-                questionTypeColors={questionTypeColors}
-                onDelete={readonly ? undefined : () => deleteQuestion(index)}
-                onMoveUp={readonly ? undefined : () => moveQuestion(index, -1)}
-                onMoveDown={readonly ? undefined : () => moveQuestion(index, 1)}
-                isFirst={index === 0}
-                isLast={index === questions.length - 1}
-                onChange={readonly ? undefined : (newQuestionData) => handleQuestionState(index, newQuestionData)}
-                readonly={readonly}
-                id={`question-${index}`}
-              />
-            )}
+            renderItem={({ value, props, index }) => {
+              const { key, ...restProps } = props;
+              return (
+                <QuestionRenderer
+                  key={key}
+                  question={value}
+                  index={index}
+                  {...restProps}
+                  questionTypeColors={questionTypeColors}
+                  onDelete={readonly ? undefined : () => deleteQuestion(index)}
+                  onMoveUp={readonly ? undefined : () => moveQuestion(index, -1)}
+                  onMoveDown={readonly ? undefined : () => moveQuestion(index, 1)}
+                  isFirst={index === 0}
+                  isLast={index === questions.length - 1}
+                  fieldErrors={fieldErrors}
+                  setFieldErrors={setFieldErrors}
+                  onChange={readonly ? undefined : (newQuestionData) => handleQuestionState(index, newQuestionData)}
+                  readonly={readonly}
+                  id={`question-${index}`}
+                />
+              );
+            }}
           />
+          {formError && (
+            <MotionBox
+              animate={{ backgroundColor: ["#fbe9e7", "#f4b39b", "#fbe9e7"] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              sx={{
+                mt: 2,
+                textAlign: "center",
+                color: "black",
+                fontWeight: "bold",
+                borderRadius: "8px",
+                py: 1,
+              }}
+            >
+              <Typography variant="body1">{formError}</Typography>
+            </MotionBox>
+          )}
           {!readonly && (
             <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
               <Button
@@ -436,7 +548,7 @@ const TutorForm = ({ examData = null, readonly = false }) => {
                   transition: 'all 0.3s ease-in-out',
                 }}
               >
-                Save Exam
+                {examData ? "Save Changes" : "Save Exam"}
               </Button>
             </Box>
           )}
@@ -466,6 +578,31 @@ const TutorForm = ({ examData = null, readonly = false }) => {
           <ArrowUpwardIcon sx={{ color: 'white', fontSize: 32 }} />
         </Button>
       </Zoom>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={isSnackbarOpen}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <motion.div
+          animate={{ backgroundColor: ["#c8e6c9", "#a5d6a7", "#c8e6c9"] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <MuiAlert
+            onClose={handleCloseSnackbar}
+            severity="success"
+            elevation={6}
+            variant="filled"
+            sx={{
+              backgroundColor: "transparent",
+            }}
+          >
+            {snackbarMessage}
+          </MuiAlert>
+        </motion.div>
+      </Snackbar>
     </Box>
   );
 };

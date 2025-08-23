@@ -10,7 +10,7 @@ import { Box, Typography } from '@mui/material';
 const AdminAuthPage = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    // This is a placeholder function for logging in.
+    // This is a placeholder function for logging into in.
     const handleLogin = (isSuccess) => {
         setIsAuthenticated(isSuccess);
     };
