@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebaseConfig";
 import axios from "axios";
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, orderBy } from "firebase/firestore";
 import QuestionRenderer from "./questionForms"; // Ensure this path is correct
 import { motion } from 'framer-motion';
+import { useNavigate } from "react-router-dom";
 
 import {
   Box,
@@ -20,13 +21,20 @@ import {
   InputAdornment,
   Snackbar,
   Alert as MuiAlert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import {
   Add as AddIcon,
   Save as SaveIcon,
   ArrowUpward as ArrowUpwardIcon,
   Search as SearchIcon,
+  List as ListIcon
 } from "@mui/icons-material";
+
+
 import { List, arrayMove } from "react-movable";
 
 const MotionBox = motion(Box);
@@ -66,6 +74,9 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
   const [searchError, setSearchError] = useState("");
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const [availableIntakes, setAvailableIntakes] = useState([]);
+  const [selectedIntake, setSelectedIntake] = useState(examData?.intakeId || "");
+  const navigate = useNavigate();
 
   const handleCloseSnackbar = () => {
     setIsSnackbarOpen(false);
@@ -75,6 +86,7 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
     if (examData) {
       setTitle(examData.title);
       setDuration(examData.duration);
+      setSelectedIntake(examData.intakeId || "");
       const transformedQuestions = examData.questions.map(q => {
         if (q.type === 'multiple-choice' && q.options.every(opt => typeof opt === 'string')) {
           return {
@@ -89,6 +101,7 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
       // Reset form fields when no examData is provided (for "Create" mode or initial load)
       setTitle("");
       setDuration("");
+      setSelectedIntake("");
       setQuestions([
         {
           type: "multiple-choice",
@@ -130,6 +143,23 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
+
+  useEffect(() => {
+    const fetchIntakes = async () => {
+      try {
+        const q = query(collection(db, "intakes"), orderBy("name", "asc"));
+        const snapshot = await getDocs(q);
+        const intakesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name,
+        }));
+        setAvailableIntakes(intakesData);
+      } catch (error) {
+        console.error("Error fetching intakes:", error);
+      }
+    };
+    fetchIntakes();
+  }, []);
 
   useEffect(() => {
     window.addEventListener('scroll', checkScrollTop);
@@ -209,7 +239,9 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
     if (!duration || duration <= 0) {
       return { message: "Please enter a valid Exam Duration.", fieldId: "exam-duration" };
     }
-
+    if (!selectedIntake) {
+      return { message: "Please select an Intake before saving the exam.", fieldId: "exam-intake" };
+    }
     if (questions.length === 0) {
       return { message: "Add at least one question to save the exam.", fieldId: "add-question-buttons" };
     }
@@ -303,6 +335,7 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
       const examDataToSave = {
         title,
         duration: Number(duration),
+        intakeId: selectedIntake,
         isDeleted: 0,
         questions: questionsWithMediaUrls,
       };
@@ -314,14 +347,14 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
           ...examDataToSave,
           updatedAt: serverTimestamp(),
         });
-        setSnackbarMessage("Exam updated successfully! ✅");
+        setSnackbarMessage("Exam updated successfully!");
       } else {
         // CREATING: Add a new document
         await addDoc(collection(db, "exams"), {
           ...examDataToSave,
           createdAt: serverTimestamp(),
         });
-        setSnackbarMessage("Exam saved successfully! ✅");
+        setSnackbarMessage("Exam saved successfully!");
       }
       
       setIsSnackbarOpen(true);
@@ -352,6 +385,7 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
+        py: { xs: 2, md: 4 } // Added vertical padding for better spacing.
       }}
     >
       <Paper elevation={12} sx={{ padding: { xs: 3, md: 5 }, borderRadius: '24px', backgroundColor: '#ffffff' }}>
@@ -366,7 +400,7 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
         <Card sx={{ padding: 3, mb: 4, boxShadow: "0px 4px 16px rgba(0,0,0,0.05)", borderRadius: '16px' }}>
           <CardContent>
             <Grid container spacing={3}>
-              <Grid item xs={12} md={8}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   label="Exam Title"
                   id="exam-title"
@@ -390,7 +424,7 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
                   }}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <TextField
                   label="Duration (minutes)"
                   id="exam-duration"
@@ -415,6 +449,47 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
                     },
                   }}
                 />
+              </Grid>
+              <Grid item xs={12} md={3}> {/* New Grid item for the Intake dropdown. */}
+                <FormControl 
+                  fullWidth 
+                  required 
+                  variant="outlined" 
+                  disabled={readonly}
+                  error={!!fieldErrors['exam-intake']} // Display error state.
+                  sx={{ minWidth: 150 }}
+                >
+                  <InputLabel id="intake-select-label">Intake</InputLabel>
+                  <Select
+                    labelId="intake-select-label"
+                    id="exam-intake" // ID for validation scrolling/focus.
+                    value={selectedIntake}
+                    label="Intake" // Important for outlined variant to show label correctly.
+                    onChange={(e) => {
+                        setSelectedIntake(e.target.value);
+                        if (fieldErrors['exam-intake']) { // Clear error on change.
+                            setFieldErrors(prev => ({ ...prev, 'exam-intake': '' }));
+                        }
+                    }}
+                    sx={{
+                      borderRadius: '12px',
+                    }}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {availableIntakes.map((intake) => (
+                      <MenuItem key={intake.id} value={intake.id}>
+                        {intake.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {fieldErrors['exam-intake'] && ( // Display error message.
+                    <Typography variant="caption" color="error">
+                      {fieldErrors['exam-intake']}
+                    </Typography>
+                  )}
+                </FormControl>
               </Grid>
             </Grid>
           </CardContent>
@@ -527,8 +602,32 @@ const TutorForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
               <Typography variant="body1">{formError}</Typography>
             </MotionBox>
           )}
+          
           {!readonly && (
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}>
+               <Button
+                variant="outlined"
+                startIcon={<ListIcon />}
+                onClick={() => navigate('/tutor-exam-list')} // Navigate to the tutor exam list
+                size="large"
+                sx={{
+                  py: 1.5,
+                  px: 5,
+                  borderRadius: '12px',
+                  borderColor: '#607d8b',
+                  color: '#607d8b',
+                  fontWeight: 'bold',
+                  '&:hover': {
+                    borderColor: '#455a64',
+                    color: '#455a64',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  },
+                  transition: 'all 0.3s ease-in-out',
+                }}
+              >
+                Go to Exam List
+              </Button>
               <Button
                 type="submit"
                 variant="contained"
