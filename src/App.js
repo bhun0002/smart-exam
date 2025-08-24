@@ -9,11 +9,14 @@ import TutorLogin from "./tutor/TutorLogin";
 import TutorDashboard from "./tutor/TutorDashboard";
 import TutorForm from "./tutor/TutorForm";
 import TutorExamList from "./tutor/TutorExamList";
+import ManageStudents from './tutor/ManageStudents';
 
 // Admin Components
 import AdminAuthPage from "./admin/AdminAuthPage"; // New import
 import AdminForm from "./admin/AdminForm"; // To be used for a registration route
 import AdminDashboard from "./admin/AdminDashboard";
+import ManageAdmins from './admin/ManageAdmins';
+import ManageIntakes from './admin/ManageIntakes';
 import AdminLogin from "./admin/AdminLogin";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -21,6 +24,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import TutorAdminLogin from "./tutoradmin/TutorAdminLogin";
 import TutorAdminDashboard from "./tutoradmin/TutorAdminDashboard";
 import TutorAdminLandingPage from "./tutoradmin/TutorAdminLandingPage";
+import ManageTutorAdmin from './tutoradmin/ManageTutorAdmin';
 
 const App = () => {
   return (
@@ -56,6 +60,14 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/tutor-manage-students"
+          element={
+            <ProtectedRoute requiredRole="tutor">
+              <ManageStudents />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Master Admin Routes */}
         <Route path="/admin-login" element={<AdminLogin />} />
@@ -67,6 +79,22 @@ const App = () => {
           element={
             <ProtectedRoute requiredRole="masterAdmin">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-manage-admins"
+          element={
+            <ProtectedRoute requiredRole="masterAdmin">
+              <ManageAdmins />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-manage-intakes"
+          element={
+            <ProtectedRoute requiredRole="masterAdmin">
+              <ManageIntakes />
             </ProtectedRoute>
           }
         />
@@ -83,7 +111,14 @@ const App = () => {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/tutor-admin-manage-tutors"
+          element={
+            <ProtectedRoute requiredRole="tutorAdmin">
+              <ManageTutorAdmin />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </Router>
   );

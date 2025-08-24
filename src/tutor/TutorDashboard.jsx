@@ -1,3 +1,4 @@
+// src/tutor/TutorDashboard.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -14,6 +15,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import LogoutIcon from '@mui/icons-material/Logout';
+import PeopleIcon from '@mui/icons-material/People'; // Icon for managing students
 import { useAuth } from '../AuthContext';
 
 const TutorDashboard = () => {
@@ -24,6 +26,7 @@ const TutorDashboard = () => {
     const cardStyles = [
         { backgroundColor: "#FFF5E1", hover: "#FFEBCC", iconColor: "#F39C12" }, // Add Exam - Soft Yellow
         { backgroundColor: "#E1F5FE", hover: "#B3E5FC", iconColor: "#3498DB" }, // List of Exams - Soft Blue
+        { backgroundColor: "#E0FFD1", hover: "#CCFFB3", iconColor: "#4CAF50" }, // Manage Students - Soft Green
     ];
 
     const handleLogout = () => {
@@ -181,6 +184,54 @@ const TutorDashboard = () => {
                                     }}
                                 >
                                     View Exams
+                                </Button>
+                            </Box>
+                        </Card>
+                    </Grid>
+
+                    {/* New "Manage Students" Card */}
+                    <Grid item xs={12} sm={6} md={4}>
+                        <Card
+                            elevation={6}
+                            sx={{
+                                borderRadius: '16px',
+                                bgcolor: cardStyles[2].backgroundColor,
+                                transition: "0.3s",
+                                "&:hover": {
+                                    bgcolor: cardStyles[2].hover,
+                                    transform: "translateY(-8px)",
+                                    boxShadow: '0 10px 20px rgba(0,0,0,0.15)',
+                                },
+                                display: 'flex',
+                                flexDirection: 'column',
+                                height: '100%',
+                            }}
+                        >
+                            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, p: 4 }}>
+                                <IconButton sx={{ bgcolor: cardStyles[2].iconColor, color: '#fff', mb: 1 }}>
+                                    <PeopleIcon /> {/* Icon for students */}
+                                </IconButton>
+                                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                                    Manage Students
+                                </Typography>
+                                <Typography variant="body2" align="center" color="text.secondary">
+                                    Approve, edit, and oversee your registered students.
+                                </Typography>
+                            </CardContent>
+                            <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => navigate("/tutor-manage-students")} // Navigate to the new student management page
+                                    sx={{
+                                        bgcolor: cardStyles[2].iconColor,
+                                        '&:hover': { bgcolor: '#4CAF50' },
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        borderRadius: '12px',
+                                        py: 1.5,
+                                    }}
+                                >
+                                    Manage Students
                                 </Button>
                             </Box>
                         </Card>
