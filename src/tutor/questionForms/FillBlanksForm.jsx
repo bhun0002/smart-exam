@@ -1,15 +1,13 @@
-// src/components/FillBlanksForm.jsx
+// src/tutor/questionForms/FillBlanksForm.jsx
 
 import React, { useState, useEffect, useRef } from "react";
 import { Box, TextField, IconButton, Card, CardContent, Typography } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon, InsertPhoto as InsertPhotoIcon } from "@mui/icons-material";
 
-// ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
 const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
     const [preview, setPreview] = useState(null);
     const fileInputRef = useRef(null);
 
-    // UPDATED: Function to handle changes and clear errors
     const handleQuestionChange = (field, value) => {
         if (readonly) return;
         onChange({ ...question, [field]: value });
@@ -82,14 +80,13 @@ const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErro
                     fullWidth
                     label="Question Text"
                     multiline
-                    rows={2}
+                    minRows={3}
                     value={question.question || ""}
                     onChange={(e) => handleQuestionChange("question", e.target.value)}
                     margin="normal"
                     variant="outlined"
                     helperText={fieldErrors[questionId] || "Use underscores '__' to indicate a blank."}
                     disabled={readonly}
-                    // ADDED: `id` and `error` props for validation
                     id={questionId}
                     error={!!fieldErrors[questionId]}
                     sx={{
@@ -101,6 +98,7 @@ const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErro
                         '& .MuiInputBase-input.Mui-disabled': {
                             WebkitTextFillColor: '#424242 !important',
                         },
+                        '& .MuiOutlinedInput-root': { borderRadius: '12px' }
                     }}
                 />
 
@@ -136,7 +134,7 @@ const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErro
                 {/* Preview for image/video */}
                 {preview && (
                     <Box sx={{ mt: 2, textAlign: "center", border: '1px dashed #bdbdbd', p: 2, borderRadius: '12px' }}>
-                        {question.media.type?.startsWith("video") ? (
+                        {question.media?.type?.startsWith("video") || (typeof question.media === 'string' && question.media.match(/\.(mp4|webm|ogg)$/) != null) ? (
                             <video
                                 src={preview}
                                 controls
@@ -156,11 +154,12 @@ const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErro
                 <TextField
                     fullWidth
                     label="Correct Answer"
+                    multiline // Enable multiline
+                    minRows={2} // Start with a reasonable height for answers
                     value={question.answer || ""}
                     onChange={(e) => handleQuestionChange("answer", e.target.value)}
                     margin="normal"
                     variant="outlined"
-                    // ADDED: `id`, `error`, and `helperText` props for validation
                     id={answerId}
                     error={!!fieldErrors[answerId]}
                     helperText={fieldErrors[answerId] || "Separate multiple answers with a comma. e.g. answer1, answer2"}
@@ -174,6 +173,7 @@ const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErro
                         '& .MuiInputBase-input.Mui-disabled': {
                             WebkitTextFillColor: '#424242 !important',
                         },
+                        '& .MuiOutlinedInput-root': { borderRadius: '12px' }
                     }}
                     disabled={readonly}
                 />

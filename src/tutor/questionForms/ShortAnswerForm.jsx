@@ -90,8 +90,8 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
                 <TextField
                     fullWidth
                     label="Question Text"
-                    multiline
-                    rows={2}
+                    multiline // ⭐ ADDED: Enable multiline
+                    minRows={3} // ⭐ ADDED: Minimum 3 rows, expands as needed
                     value={question.question || ""}
                     onChange={(e) => handleQuestionChange("question", e.target.value)}
                     margin="normal"
@@ -148,7 +148,7 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
                 {/* Preview for image/video */}
                 {preview && (
                     <Box sx={{ mt: 2, textAlign: "center", border: '1px dashed #bdbdbd', p: 2, borderRadius: '12px' }}>
-                        {question.media.type?.startsWith("video") ? (
+                        {question.media?.type?.startsWith("video") ? (
                             <video
                                 src={preview}
                                 controls
@@ -167,6 +167,8 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
                 <TextField
                     fullWidth
                     label="Correct Answer"
+                    multiline // ⭐ ADDED: Enable multiline
+                    minRows={5} // ⭐ ADDED: Minimum 5 rows for detailed short answers
                     value={question.answer || ""}
                     onChange={(e) => handleQuestionChange("answer", e.target.value)}
                     margin="normal"

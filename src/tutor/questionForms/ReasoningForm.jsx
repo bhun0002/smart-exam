@@ -90,8 +90,8 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                 <TextField
                     fullWidth
                     label="Question Text"
-                    multiline
-                    rows={2}
+                    multiline // ⭐ ADDED: Enable multiline
+                    minRows={5} // ⭐ ADDED: Start with 5 rows for scenario/problem description
                     value={question.question || ""}
                     onChange={(e) => handleQuestionChange("question", e.target.value)}
                     margin="normal"
@@ -148,7 +148,7 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                 {/* Preview for image/video */}
                 {preview && (
                     <Box sx={{ mt: 2, textAlign: "center", border: '1px dashed #bdbdbd', p: 2, borderRadius: '12px' }}>
-                        {question.media.type?.startsWith("video") ? (
+                        {question.media?.type?.startsWith("video") ? (
                             <video
                                 src={preview}
                                 controls
@@ -167,8 +167,8 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                 <TextField
                     fullWidth
                     label="Correct Answer"
-                    multiline
-                    rows={4}
+                    multiline // ⭐ ADDED: Enable multiline
+                    minRows={7} // ⭐ ADDED: Start with 7 rows for detailed reasoning/solution
                     value={question.answer || ""}
                     onChange={(e) => handleQuestionChange("answer", e.target.value)}
                     margin="normal"

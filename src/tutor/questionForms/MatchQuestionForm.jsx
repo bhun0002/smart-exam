@@ -1,4 +1,4 @@
-// src/components/MatchQuestionForm.jsx
+// src/tutor/questionForms/MatchQuestionForm.jsx
 
 import React from "react";
 import {
@@ -132,7 +132,8 @@ const MatchQuestionForm = ({ question, onChange, readonly = false, index, fieldE
                                     onChange={(e) => handleMatchPairChange(i, "left", e.target.value)}
                                     variant="outlined"
                                     disabled={readonly}
-                                    // ADDED: ID, error, and helperText props for validation
+                                    multiline
+                                    minRows={2}
                                     id={leftFieldId}
                                     error={!!fieldErrors[leftFieldId]}
                                     helperText={fieldErrors[leftFieldId]}
@@ -157,7 +158,8 @@ const MatchQuestionForm = ({ question, onChange, readonly = false, index, fieldE
                                     }
                                     variant="outlined"
                                     disabled={readonly}
-                                    // ADDED: ID, error, and helperText props for validation
+                                    multiline
+                                    minRows={2}
                                     id={rightFieldId}
                                     error={!!fieldErrors[rightFieldId]}
                                     helperText={fieldErrors[rightFieldId]}

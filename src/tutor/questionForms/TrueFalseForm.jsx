@@ -94,8 +94,8 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                 <TextField
                     fullWidth
                     label="Question Text"
-                    multiline
-                    rows={2}
+                    multiline // ⭐ ADDED: Enable multiline
+                    minRows={3} // ⭐ ADDED: Minimum 3 rows, expands as needed
                     value={question.question || ""}
                     onChange={(e) => handleQuestionChange("question", e.target.value)}
                     margin="normal"
@@ -170,8 +170,11 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                 <FormControl 
                     fullWidth 
                     sx={{ mt: 3 }}
-                    // ADDED: `error` prop for validation
                     error={!!fieldErrors[answerId]}
+                    onKeyDown={(e) => {
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                    }}
                 >
                     <InputLabel id="correct-answer-label">Correct Answer</InputLabel>
                     <Select

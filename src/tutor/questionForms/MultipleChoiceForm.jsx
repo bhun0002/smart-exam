@@ -31,7 +31,7 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
 
         // Construct the fieldId using the provided suffix for clearing the error
         const fieldIdToClear = `question-${index}-${errorIdSuffix}`;
-        
+
         if (fieldErrors[fieldIdToClear]) {
             setFieldErrors(prev => {
                 const newErrors = { ...prev };
@@ -62,7 +62,7 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
     const addOption = () => {
         if (readonly) return;
         onChange({ ...question, options: [...question.options, { id: generateUniqueId(), text: "" }] });
-        
+
         const optionsId = `question-${index}-options`;
         if (fieldErrors[optionsId]) {
             setFieldErrors(prev => {
@@ -76,12 +76,12 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
     const deleteOption = (id) => {
         if (readonly) return;
         const updatedOptions = question.options.filter(opt => opt.id !== id);
-        
+
         const deletedOption = question.options.find(opt => opt.id === id);
         if (question.answer === deletedOption.text) {
             handleQuestionChange("answer", ""); // "answer" as property key, "answer" as default errorIdSuffix
         }
-        
+
         onChange({ ...question, options: updatedOptions });
 
         setFieldErrors(prev => {
@@ -131,7 +131,7 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
     }, [question.media]);
 
     // This is the ID that the TextField will use for its `id` prop and that TutorForm uses for errors
-    const questionId = `question-${index}-question-text`; 
+    const questionId = `question-${index}-question-text`;
     const optionsId = `question-${index}-options`;
     const answerId = `question-${index}-answer`;
 
@@ -157,11 +157,11 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                 <TextField
                     fullWidth
                     label="Question Text"
-                    multiline
-                    rows={2}
+                    multiline // ⭐ ADDED: Enable multiline
+                    minRows={3} // ⭐ ADDED: Minimum 3 rows, expands as needed
                     value={question.question || ""}
                     // FIXED: Pass "question-text" as the errorIdSuffix to match parent's error key
-                    onChange={(e) => handleQuestionChange("question", e.target.value, "question-text")} 
+                    onChange={(e) => handleQuestionChange("question", e.target.value, "question-text")}
                     margin="normal"
                     variant="outlined"
                     disabled={readonly}
@@ -200,13 +200,13 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                             }}
                         />
                         {preview && (
-                            <IconButton 
-                                color="error" 
-                                onClick={deleteMedia} 
-                                sx={{ 
-                                    p: 1, 
-                                    backgroundColor: '#ffebee', 
-                                    '&:hover': { backgroundColor: '#ffcdd2' } 
+                            <IconButton
+                                color="error"
+                                onClick={deleteMedia}
+                                sx={{
+                                    p: 1,
+                                    backgroundColor: '#ffebee',
+                                    '&:hover': { backgroundColor: '#ffcdd2' }
                                 }}
                             >
                                 <DeleteIcon />
@@ -243,14 +243,16 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                         </FormHelperText>
                     )}
                     {question.options.map((opt, i) => {
-                        const optionId = `question-${index}-option-${i}`; 
+                        const optionId = `question-${index}-option-${i}`;
                         return (
                             <Box key={opt.id} sx={{ display: "flex", alignItems: "center", mt: 1 }}>
                                 <TextField
                                     fullWidth
                                     label={`Option ${i + 1}`}
+                                    multiline // ⭐ ADDED: Enable multiline
+                                    minRows={1} // ⭐ ADDED: Minimum 1 row, expands as needed
                                     value={opt.text}
-                                    onChange={(e) => handleOptionChange(i, e.target.value)} 
+                                    onChange={(e) => handleOptionChange(i, e.target.value)}
                                     margin="dense"
                                     variant="outlined"
                                     disabled={readonly}
@@ -308,13 +310,18 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                     fullWidth
                     sx={{ mt: 3 }}
                     error={!!fieldErrors[answerId]}
+                    onKeyDown={(e) => {
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                    }}
                 >
                     <InputLabel id="correct-answer-label" sx={{ color: 'rgba(0,0,0,0.6)' }}>Correct Answer</InputLabel>
+
                     <Select
                         labelId="correct-answer-label"
                         value={question.answer || ""}
                         label="Correct Answer"
-                        onChange={(e) => handleQuestionChange("answer", e.target.value)} 
+                        onChange={(e) => handleQuestionChange("answer", e.target.value)}
                         disabled={readonly}
                         id={answerId}
                         sx={{
@@ -334,12 +341,13 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                             </MenuItem>
                         ))}
                     </Select>
+
                     {fieldErrors[answerId] && (
                         <FormHelperText>{fieldErrors[answerId]}</FormHelperText>
                     )}
                 </FormControl>
             </CardContent>
-        </Card>
+        </Card >
     );
 };
 
