@@ -7,7 +7,7 @@ import NoPageFound from "./components/NoPageFound";
 // Tutor Components
 import TutorLogin from "./tutor/TutorLogin";
 import TutorDashboard from "./tutor/TutorDashboard";
-import TutorForm from "./tutor/TutorForm";
+import TutorExamForm from "./tutor/TutorExamForm";
 import TutorExamList from "./tutor/TutorExamList";
 import ManageStudents from './tutor/ManageStudents';
 
@@ -48,7 +48,7 @@ const App = () => {
           path="/tutor-create-exam"
           element={
             <ProtectedRoute requiredRole="tutor">
-              <TutorForm />
+              <TutorExamForm />
             </ProtectedRoute>
           }
         />

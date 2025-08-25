@@ -31,6 +31,10 @@ import {
     TableRow,
     Avatar,
     Chip,
+    FormControl, // NEW: For the Select dropdown
+    InputLabel, // NEW: For the Select dropdown label
+    Select, // NEW: For the dropdown
+    MenuItem, // NEW: For dropdown options
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import PeopleIcon from '@mui/icons-material/People';
@@ -42,21 +46,24 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // For back button
 import SearchIcon from '@mui/icons-material/Search';
 
 // --- StudentForm Component ---
-const StudentForm = ({ onAddStudent, onUpdateStudent, editingStudent, clearEditing, error, success }) => {
+const StudentForm = ({ onAddStudent, onUpdateStudent, editingStudent, clearEditing, error, success, intakes }) => {
     const [name, setName] = useState(editingStudent?.name || "");
     const [email, setEmail] = useState(editingStudent?.email || "");
     const [password, setPassword] = useState(""); // Never pre-fill passwords for security
+    const [selectedIntakeId, setSelectedIntakeId] = useState(editingStudent?.intakeId || ""); // NEW: For intake selection
     const [localError, setLocalError] = useState("");
 
     useEffect(() => {
         if (editingStudent) {
             setName(editingStudent.name);
             setEmail(editingStudent.email);
+            setSelectedIntakeId(editingStudent.intakeId || ""); // Set selected intake for editing
             setPassword(""); // Clear password field when editing
         } else {
             setName("");
             setEmail("");
             setPassword("");
+            setSelectedIntakeId(""); // Clear intake selection for new student
         }
         setLocalError(""); // Clear local error on student change
     }, [editingStudent]);
@@ -65,8 +72,8 @@ const StudentForm = ({ onAddStudent, onUpdateStudent, editingStudent, clearEditi
         e.preventDefault();
         setLocalError(""); // Clear previous local errors
 
-        if (!name.trim() || !email.trim()) {
-            setLocalError("Name and Email cannot be empty.");
+        if (!name.trim() || !email.trim() || !selectedIntakeId) { // NEW: Validate intake selection
+            setLocalError("Name, Email, and Intake cannot be empty.");
             return;
         }
         if (!/\S+@\S+\.\S+/.test(email)) {
@@ -83,7 +90,7 @@ const StudentForm = ({ onAddStudent, onUpdateStudent, editingStudent, clearEditi
             return;
         }
 
-        const studentData = { name, email };
+        const studentData = { name, email, intakeId: selectedIntakeId }; // NEW: Include intakeId
         if (password.trim()) { // Only update password if it's explicitly provided
             studentData.password = password;
         }
@@ -94,11 +101,11 @@ const StudentForm = ({ onAddStudent, onUpdateStudent, editingStudent, clearEditi
             await onAddStudent({ ...studentData, password: password.trim() }); // Pass password for new students
         }
         clearEditing(); // Reset form and editing state
-         // CHANGE START: Explicitly reset local form states after submission
-         setName("");
-         setEmail("");
-         setPassword("");
-         // CHANGE END
+        // Explicitly reset local form states after successful submission
+        setName("");
+        setEmail("");
+        setPassword("");
+        setSelectedIntakeId(""); // NEW: Clear intake selection after submission
     };
 
     return (
@@ -139,6 +146,27 @@ const StudentForm = ({ onAddStudent, onUpdateStudent, editingStudent, clearEditi
                     variant="outlined"
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
                 />
+                {/* NEW: Intake Dropdown */}
+                <FormControl fullWidth margin="normal" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}>
+                    <InputLabel id="intake-select-label">Intake</InputLabel>
+                    <Select
+                        labelId="intake-select-label"
+                        id="intake-select"
+                        value={selectedIntakeId}
+                        label="Intake"
+                        onChange={(e) => setSelectedIntakeId(e.target.value)}
+                    >
+                        <MenuItem value="">
+                            <em>Select an Intake</em>
+                        </MenuItem>
+                        {intakes.map((intake) => (
+                            <MenuItem key={intake.id} value={intake.id}>
+                                {intake.name}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                
                 <Box sx={{ display: 'flex', gap: 2, mt: 3, justifyContent: 'flex-end' }}>
                     <Button
                         type="submit"
@@ -179,7 +207,8 @@ const StudentList = ({ students, onEditStudent, onDeleteStudent, onApproveStuden
 
     const filteredStudents = students.filter(student =>
         student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.email.toLowerCase().includes(searchTerm.toLowerCase())
+        student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.intakeName && student.intakeName.toLowerCase().includes(searchTerm.toLowerCase())) // NEW: Search by intake name
     );
 
     return (
@@ -216,6 +245,7 @@ const StudentList = ({ students, onEditStudent, onDeleteStudent, onApproveStuden
                             <TableRow>
                                 <TableCell sx={{ fontWeight: 'bold', color: '#263238' }}>Name</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold', color: '#263238' }}>Email</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', color: '#263238' }}>Intake</TableCell> {/* NEW: Intake Column */}
                                 <TableCell sx={{ fontWeight: 'bold', color: '#263238' }}>Status</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold', color: '#263238' }}>Actions</TableCell>
                             </TableRow>
@@ -232,6 +262,13 @@ const StudentList = ({ students, onEditStudent, onDeleteStudent, onApproveStuden
                                         </Box>
                                     </TableCell>
                                     <TableCell>{student.email}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={student.intakeName || "N/A"} // NEW: Display intake name
+                                            size="small"
+                                            sx={{ bgcolor: '#BBDEFB', color: '#1A237E', fontWeight: 'bold', borderRadius: '8px' }}
+                                        />
+                                    </TableCell>
                                     <TableCell>
                                         <Chip
                                             label={student.isApproved ? "Approved" : "Pending"}
@@ -286,12 +323,15 @@ const StudentList = ({ students, onEditStudent, onDeleteStudent, onApproveStuden
 // --- ManageStudents Main Component ---
 const ManageStudents = () => {
     const [students, setStudents] = useState([]);
+    const [intakes, setIntakes] = useState([]); // NEW: State to store intakes
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [editingStudent, setEditingStudent] = useState(null); // Student being edited
+    const [loading, setLoading] = useState(true); // Added loading state
     const navigate = useNavigate();
 
     const studentsCollectionRef = collection(db, "students");
+    const intakesCollectionRef = collection(db, "intakes"); // NEW: Reference to intakes collection
 
     const clearMessages = () => {
         setError("");
@@ -302,26 +342,57 @@ const ManageStudents = () => {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     };
 
-    // Fetch students function
-    const getStudents = async () => {
+    // NEW: Fetch intakes function
+    const getIntakes = async () => {
         try {
-            const q = query(
-                studentsCollectionRef,
-                where("isDeleted", "!=", true), // Fetch only non-deleted students
-                orderBy("createdAt", "desc")
-            );
+            const q = query(intakesCollectionRef, orderBy("name", "asc"));
             const data = await getDocs(q);
-            setStudents(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
-            clearMessages(); // Clear messages after successful fetch
+            setIntakes(data.docs.map(doc => ({ ...doc.data(), id: doc.id })));
         } catch (err) {
-            console.error("Error fetching students:", err);
-            setError("Failed to fetch students.");
+            console.error("Error fetching intakes:", err);
+            // Don't set global error here, let student fetch handle it or keep it separate
         }
     };
 
-    // Effect to fetch students on mount
+    // Fetch students function
+    const getStudents = async () => {
+        setLoading(true); // Start loading
+        try {
+            // Ensure intakes are fetched before students for mapping
+            const intakesData = await getDocs(query(intakesCollectionRef, orderBy("name", "asc")));
+            const fetchedIntakes = intakesData.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+            setIntakes(fetchedIntakes); // Update state for form as well
+
+            const q = query(
+                studentsCollectionRef,
+                where("isDeleted", "==", false), // Fetch only non-deleted students
+                orderBy("createdAt", "desc")
+            );
+            const data = await getDocs(q);
+            
+            const fetchedStudents = data.docs.map((studentDoc) => {
+                const studentData = studentDoc.data();
+                // Map intake name for display
+                const intake = fetchedIntakes.find(int => int.id === studentData.intakeId);
+                return {
+                    ...studentData,
+                    id: studentDoc.id,
+                    intakeName: intake ? intake.name : "Unknown Intake" // NEW: Add intakeName
+                };
+            });
+            setStudents(fetchedStudents);
+            clearMessages(); // Clear messages after successful fetch
+        } catch (err) {
+            console.error("Error fetching students or intakes:", err);
+            setError("Failed to fetch student data or available intakes. Check console for details.");
+        } finally {
+            setLoading(false); // Stop loading
+        }
+    };
+
+    // Effect to fetch data on mount
     useEffect(() => {
-        getStudents();
+        getStudents(); // This now fetches both students and intakes
     }, []);
 
     // Effect to clear success messages after a delay
@@ -335,10 +406,10 @@ const ManageStudents = () => {
     }, [success]);
 
 
-    const handleAddStudent = async ({ name, email, password }) => {
+    const handleAddStudent = async ({ name, email, password, intakeId }) => { // NEW: Expect intakeId
         clearMessages();
-        if (!name.trim() || !email.trim() || !password.trim()) {
-            setError("Please fill in all fields.");
+        if (!name.trim() || !email.trim() || !password.trim() || !intakeId) {
+            setError("Please fill in all required fields, including Intake.");
             return;
         }
         if (!validateEmail(email)) {
@@ -360,7 +431,8 @@ const ManageStudents = () => {
             await addDoc(studentsCollectionRef, {
                 name,
                 email,
-                password,
+                password, // NOTE: Insecure to store plaintext passwords. Hash them!
+                intakeId, // NEW: Save intakeId
                 isApproved: false, // New students are pending by default
                 isDeleted: false,
                 createdAt: serverTimestamp(),
@@ -373,7 +445,7 @@ const ManageStudents = () => {
         }
     };
 
-    const handleUpdateStudent = async (id, updatedData) => {
+    const handleUpdateStudent = async (id, updatedData) => { // NEW: Expect intakeId
         clearMessages();
         if (updatedData.name && !updatedData.name.trim()) {
             setError("Name cannot be empty.");
@@ -390,6 +462,11 @@ const ManageStudents = () => {
             setError("Password must be at least 6 characters long.");
             return;
         }
+        if (updatedData.intakeId && !updatedData.intakeId.trim()) { // NEW: Validate intakeId on update
+             setError("Intake cannot be empty.");
+             return;
+        }
+
         try {
             // Check if email is being updated to an already existing email (excluding current student)
             if (updatedData.email) {
@@ -495,17 +572,41 @@ const ManageStudents = () => {
                     clearEditing={() => setEditingStudent(null)}
                     error={error}
                     success={success}
+                    intakes={intakes} // NEW: Pass intakes to the form
                 />
 
                 {/* Student List */}
-                <StudentList
-                    students={students}
-                    onEditStudent={setEditingStudent} // Pass setEditingStudent to load data into form
-                    onDeleteStudent={handleDeleteStudent}
-                    onApproveStudent={handleApproveStudent}
-                    error={error} // Pass general error down if needed
-                />
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                        <CircularProgress />
+                    </Box>
+                ) : error ? (
+                    <MuiAlert severity="error" sx={{ mb: 2 }}>{error}</MuiAlert>
+                ) : (
+                    <StudentList
+                        students={students}
+                        onEditStudent={setEditingStudent} // Pass setEditingStudent to load data into form
+                        onDeleteStudent={handleDeleteStudent}
+                        onApproveStudent={handleApproveStudent}
+                    />
+                )}
             </Paper>
+            <Snackbar
+                open={!!(error || success)}
+                autoHideDuration={5000}
+                onClose={clearMessages}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+            >
+                <MuiAlert
+                    onClose={clearMessages}
+                    severity={error ? "error" : "success"}
+                    elevation={6}
+                    variant="filled"
+                    sx={{ backgroundColor: error ? "#F44336" : "#4CAF50" }}
+                >
+                    {error || success}
+                </MuiAlert>
+            </Snackbar>
         </Box>
     );
 };
