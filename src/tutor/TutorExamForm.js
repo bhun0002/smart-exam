@@ -1,10 +1,14 @@
 // src/tutor/TutorExamForm.jsx
 
 import React, { useState, useEffect } from "react";
+// 📚 Important! Please ensure the path below correctly points to your Firebase configuration file.
+// For example, if it's in 'src/config/firebaseConfig.js', the path might be '../config/firebaseConfig'.
 import { db } from "../firebaseConfig";
 import axios from "axios";
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, orderBy } from "firebase/firestore";
-import QuestionRenderer from "./questionForms"; // Ensure this path is correct
+// 📚 Important! Please ensure the path below correctly points to your QuestionRenderer component file.
+// For example, if it's in 'src/components/questionForms.jsx', the path might be '../../components/questionForms'.
+import QuestionRenderer from "./questionForms";
 import { motion } from 'framer-motion';
 import { useNavigate } from "react-router-dom";
 
@@ -32,10 +36,11 @@ import {
     ArrowUpward as ArrowUpwardIcon,
     Search as SearchIcon,
     List as ListIcon,
-    ArrowBack as ArrowBackIcon, // NEW: Import ArrowBackIcon for the back button
+    ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
 
-
+// 📚 Important! You need to install 'react-movable' in your project.
+// Run this command in your terminal: npm install react-movable OR yarn add react-movable
 import { List, arrayMove } from "react-movable";
 
 const MotionBox = motion(Box);
@@ -51,7 +56,7 @@ const questionTypeColors = {
 
 const generateUniqueId = () => Math.random().toString(36).substring(2, 9);
 
-const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => { // Component renamed to TutorExamForm
+const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => {
     const [title, setTitle] = useState(examData?.title || "");
     const [snackbarMessage, setSnackbarMessage] = useState("");
     const [isSnackbarOpen, setIsSnackbarOpen] = useState(false);
@@ -116,7 +121,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                 },
             ]);
         }
-    }, [examData]); // Re-run when examData changes
+    }, [examData]);
 
     const checkScrollTop = () => {
         if (!showScroll && window.pageYOffset > 400) {
@@ -148,6 +153,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     useEffect(() => {
         const fetchIntakes = async () => {
             try {
+                // Ensure db is correctly initialized and available globally or passed down
                 const q = query(collection(db, "intakes"), orderBy("name", "asc"));
                 const snapshot = await getDocs(q);
                 const intakesData = snapshot.docs.map(doc => ({
@@ -226,7 +232,9 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
             return response.data.secure_url;
         } catch (err) {
             console.error("Cloudinary upload error:", err);
-            alert("Failed to upload media!"); // Consider using a Snackbar instead of alert
+            // Replaced alert with Snackbar for better UX
+            setSnackbarMessage("Failed to upload media!");
+            setIsSnackbarOpen(true);
             return null;
         }
     };
@@ -379,6 +387,69 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
         }
     };
 
+    // Reusable "Add Questions" component for cleaner code
+    const AddQuestionButtons = () => (
+        <Box sx={{ mt: 5, mb: 3 }} id="add-question-buttons">
+            <Typography variant="h6" gutterBottom fontWeight="bold" color="#546e7a">
+                Add Questions
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Click a button to add a new question type to your exam.
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                {["multiple-choice", "true-false", "fill-blanks", "short-answer", "match", "reasoning"].map((type) => (
+                    <Button
+                        key={type}
+                        variant="contained"
+                        onClick={() => addQuestion(type)}
+                        sx={{
+                            textTransform: "capitalize",
+                            backgroundColor: questionTypeColors[type],
+                            color: "#455a64",
+                            borderRadius: '12px',
+                            fontWeight: 'bold',
+                            transition: 'all 0.3s ease-in-out',
+                            '&:hover': {
+                                backgroundColor: questionTypeColors[type],
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                            },
+                        }}
+                        startIcon={<AddIcon />}
+                    >
+                        {type.replace("-", " ")}
+                    </Button>
+                ))}
+            </Box>
+
+            <Box sx={{ mt: 3, display: 'flex', alignItems: 'center' }}>
+                <TextField
+                    label="Jump to Question #"
+                    type="number"
+                    value={questionNumber}
+                    onChange={(e) => {
+                        setQuestionNumber(e.target.value);
+                        scrollToQuestion(e.target.value);
+                    }}
+                    error={!!searchError}
+                    helperText={searchError}
+                    sx={{ width: 220 }}
+                    size="small"
+                    variant="outlined"
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <SearchIcon />
+                            </InputAdornment>
+                        ),
+                        sx: { borderRadius: '12px' }
+                    }}
+                />
+            </Box>
+        </Box>
+    );
+
+
     return (
         <Box
             sx={{
@@ -390,7 +461,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
             }}
         >
             <Paper elevation={12} sx={{ padding: { xs: 3, md: 5 }, borderRadius: '24px', backgroundColor: '#ffffff' }}>
-                {/* NEW: Header with Back Button and Title */}
+                {/* Header with Back Button and Title */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                     <Button
                         variant="outlined"
@@ -474,6 +545,11 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                                     disabled={readonly}
                                     error={!!fieldErrors['exam-intake']}
                                     sx={{ minWidth: 150 }}
+                                    // Key fix: Apply onKeyDown to FormControl to block all key presses
+                                    onKeyDown={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
                                 >
                                     <InputLabel id="intake-select-label">Intake</InputLabel>
                                     <Select
@@ -511,67 +587,8 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                     </CardContent>
                 </Card>
 
-                {/* Question type buttons and search */}
-                {!readonly && (
-                    <Box sx={{ mt: 5, mb: 3 }} id="add-question-buttons">
-                        <Typography variant="h6" gutterBottom fontWeight="bold" color="#546e7a">
-                            Add Questions
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Click a button to add a new question type to your exam.
-                        </Typography>
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                            {["multiple-choice", "true-false", "fill-blanks", "short-answer", "match", "reasoning"].map((type) => (
-                                <Button
-                                    key={type}
-                                    variant="contained"
-                                    onClick={() => addQuestion(type)}
-                                    sx={{
-                                        textTransform: "capitalize",
-                                        backgroundColor: questionTypeColors[type],
-                                        color: "#455a64",
-                                        borderRadius: '12px',
-                                        fontWeight: 'bold',
-                                        transition: 'all 0.3s ease-in-out',
-                                        '&:hover': {
-                                            backgroundColor: questionTypeColors[type],
-                                            transform: 'translateY(-2px)',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                        },
-                                    }}
-                                    startIcon={<AddIcon />}
-                                >
-                                    {type.replace("-", " ")}
-                                </Button>
-                            ))}
-                        </Box>
-
-                        <Box sx={{ mt: 3, display: 'flex', alignItems: 'center' }}>
-                            <TextField
-                                label="Jump to Question #"
-                                type="number"
-                                value={questionNumber}
-                                onChange={(e) => {
-                                    setQuestionNumber(e.target.value);
-                                    scrollToQuestion(e.target.value);
-                                }}
-                                error={!!searchError}
-                                helperText={searchError}
-                                sx={{ width: 220 }}
-                                size="small"
-                                variant="outlined"
-                                InputProps={{
-                                    endAdornment: (
-                                        <InputAdornment position="end">
-                                            <SearchIcon />
-                                        </InputAdornment>
-                                    ),
-                                    sx: { borderRadius: '12px' }
-                                }}
-                            />
-                        </Box>
-                    </Box>
-                )}
+                {/* Question type buttons and search (TOP) */}
+                {!readonly && <AddQuestionButtons />}
 
                 {/* Questions list */}
                 <form onSubmit={handleSubmit}>
@@ -619,6 +636,9 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                         </MotionBox>
                     )}
                     
+                    {/* Question type buttons and search (BOTTOM) */}
+                    {!readonly && <AddQuestionButtons />}
+
                     {!readonly && (
                         <Box sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}>
                                <Button
