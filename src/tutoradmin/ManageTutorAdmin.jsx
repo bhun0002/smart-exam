@@ -176,13 +176,23 @@ const TutorForm = ({ onAddTutor, onUpdateTutor, editingTutor, clearEditing, erro
 // --- TutorList Component ---
 const TutorList = ({ tutors, onEditTutor, onDeleteTutor, onApproveTutor, error }) => {
     const [searchTerm, setSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
 
+    // Filter tutors based on search
     const filteredTutors = tutors.filter(tutor =>
         tutor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tutor.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return (
+     // Pagination calculations
+     const totalPages = Math.ceil(filteredTutors.length / pageSize);
+     const paginatedTutors = filteredTutors.slice(
+         (currentPage - 1) * pageSize,
+         currentPage * pageSize
+     );
+
+     return (
         <Paper elevation={3} sx={{ p: 3, borderRadius: '16px', bgcolor: '#fdfdfd' }}>
             <Typography variant="h6" fontWeight="bold" color="#455a64" sx={{ mb: 2 }}>
                 Registered Tutors
@@ -193,7 +203,7 @@ const TutorList = ({ tutors, onEditTutor, onDeleteTutor, onApproveTutor, error }
                 size="small"
                 fullWidth
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} // Reset page on search
                 InputProps={{
                     startAdornment: (
                         <InputAdornment position="start">
@@ -205,11 +215,12 @@ const TutorList = ({ tutors, onEditTutor, onDeleteTutor, onApproveTutor, error }
                 sx={{ mb: 3 }}
             />
             {error && <MuiAlert severity="error" sx={{ mb: 2 }}>{error}</MuiAlert>}
-            {filteredTutors.length === 0 ? (
+            {paginatedTutors.length === 0 ? (
                 <Typography textAlign="center" color="text.secondary" sx={{ py: 3 }}>
                     No tutors found.
                 </Typography>
             ) : (
+                <>
                 <TableContainer>
                     <Table>
                         <TableHead sx={{ bgcolor: '#e0f2f7' }}>
@@ -221,7 +232,7 @@ const TutorList = ({ tutors, onEditTutor, onDeleteTutor, onApproveTutor, error }
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {filteredTutors.map((tutor) => (
+                            {paginatedTutors.map((tutor) => (
                                 <TableRow key={tutor.id} sx={{ '&:nth-of-type(odd)': { bgcolor: '#fcfcfc' } }}>
                                     <TableCell>
                                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -277,6 +288,30 @@ const TutorList = ({ tutors, onEditTutor, onDeleteTutor, onApproveTutor, error }
                         </TableBody>
                     </Table>
                 </TableContainer>
+
+                {/* Pagination buttons */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
+                    <Button
+                        variant="outlined"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(prev => prev - 1)}
+                        sx={{ borderRadius: "12px" }}
+                    >
+                        Previous
+                    </Button>
+                    <Typography>
+                        Page {currentPage} of {totalPages || 1}
+                    </Typography>
+                    <Button
+                        variant="outlined"
+                        disabled={currentPage === totalPages || totalPages === 0}
+                        onClick={() => setCurrentPage(prev => prev + 1)}
+                        sx={{ borderRadius: "12px" }}
+                    >
+                        Next
+                    </Button>
+                </Box>
+                </>
             )}
         </Paper>
     );

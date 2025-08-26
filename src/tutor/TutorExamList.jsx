@@ -65,6 +65,8 @@ const TutorExamList = () => {
     const [snackbarMessage, setSnackbarMessage] = useState("");
     const [isSnackbarOpen, setIsSnackbarOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
     const navigate = useNavigate();
 
     const examsCollectionRef = collection(db, "exams");
@@ -73,6 +75,7 @@ const TutorExamList = () => {
     const handleCloseSnackbar = () => {
         setIsSnackbarOpen(false);
     };
+
 
     useEffect(() => {
         const fetchIntakes = async () => {
@@ -175,7 +178,7 @@ const TutorExamList = () => {
                 setExams(examsWithIntakeNames);
             } catch (error) {
                 console.error("Error fetching exams after modal close:", error);
-                setSnackbarMessage("Failed to refresh exam list. ❌");
+                setSnackbarMessage("Failed to refresh exam list!.");
                 setIsSnackbarOpen(true);
             }
         }, 200);
@@ -184,6 +187,12 @@ const TutorExamList = () => {
     const filteredExams = exams.filter(exam =>
         exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (exam.intakeName && exam.intakeName.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    const totalPages = Math.ceil(filteredExams.length / pageSize);
+    const paginatedExams = filteredExams.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
     );
 
     return (
@@ -220,7 +229,10 @@ const TutorExamList = () => {
                     variant="outlined"
                     size="small"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1); // reset to first page on search
+                    }}
                     InputProps={{
                         startAdornment: (
                             <InputAdornment position="start">
@@ -259,14 +271,14 @@ const TutorExamList = () => {
                     </TableHead>
 
                     <TableBody>
-                        {filteredExams.length === 0 ? (
+                        {paginatedExams.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={5} align="center">
                                     No exams found
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredExams.map((exam) => (
+                            paginatedExams.map((exam) => (
                                 <TableRow
                                     key={exam.id}
                                     sx={{ "&:hover": { bgcolor: "#f1f1f1" } }}
@@ -324,6 +336,34 @@ const TutorExamList = () => {
                     </TableBody>
                 </Table>
             </TableContainer>
+            <Box
+                sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mt: 2,
+                }}
+            >
+                <Button
+                    variant="outlined"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    sx={{ borderRadius: "12px" }}
+                >
+                    Previous
+                </Button>
+                <Typography>
+                    Page {currentPage} of {totalPages || 1}
+                </Typography>
+                <Button
+                    variant="outlined"
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    sx={{ borderRadius: "12px" }}
+                >
+                    Next
+                </Button>
+            </Box>
 
             <Modal
                 open={openModal}

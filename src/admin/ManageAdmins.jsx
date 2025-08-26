@@ -104,7 +104,7 @@ const AdminForm = ({ onAddAdmin, onUpdateAdmin, editingAdmin, clearEditing, erro
         } else {
             await onAddAdmin({ ...adminData, password: password.trim() });
         }
-        
+
         // Clear local form states after successful submission
         setName("");
         setEmail("");
@@ -197,10 +197,20 @@ const AdminForm = ({ onAddAdmin, onUpdateAdmin, editingAdmin, clearEditing, erro
 // --- AdminList Component ---
 const AdminList = ({ admins, onEditAdmin, onDeleteAdmin, onApproveAdmin, error }) => {
     const [searchTerm, setSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
 
+    // Filter tutors based on search
     const filteredAdmins = admins.filter(admin =>
         admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         admin.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Pagination calculations
+    const totalPages = Math.ceil(filteredAdmins.length / pageSize);
+    const paginatedTutors = filteredAdmins.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
     );
 
     return (
@@ -226,11 +236,12 @@ const AdminList = ({ admins, onEditAdmin, onDeleteAdmin, onApproveAdmin, error }
                 sx={{ mb: 3 }}
             />
             {error && <MuiAlert severity="error" sx={{ mb: 2 }}>{error}</MuiAlert>}
-            {filteredAdmins.length === 0 ? (
+            {paginatedTutors.length === 0 ? (
                 <Typography textAlign="center" color="text.secondary" sx={{ py: 3 }}>
                     No admins found.
                 </Typography>
             ) : (
+                <>
                 <TableContainer>
                     <Table>
                         <TableHead sx={{ bgcolor: '#e0f2f7' }}>
@@ -243,7 +254,7 @@ const AdminList = ({ admins, onEditAdmin, onDeleteAdmin, onApproveAdmin, error }
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {filteredAdmins.map((admin) => (
+                            {paginatedTutors.map((admin) => (
                                 <TableRow key={admin.id} sx={{ '&:nth-of-type(odd)': { bgcolor: '#fcfcfc' } }}>
                                     <TableCell>
                                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -303,6 +314,29 @@ const AdminList = ({ admins, onEditAdmin, onDeleteAdmin, onApproveAdmin, error }
                         </TableBody>
                     </Table>
                 </TableContainer>
+                {/* Pagination buttons */}
+                                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
+                                    <Button
+                                        variant="outlined"
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => prev - 1)}
+                                        sx={{ borderRadius: "12px" }}
+                                    >
+                                        Previous
+                                    </Button>
+                                    <Typography>
+                                        Page {currentPage} of {totalPages || 1}
+                                    </Typography>
+                                    <Button
+                                        variant="outlined"
+                                        disabled={currentPage === totalPages || totalPages === 0}
+                                        onClick={() => setCurrentPage(prev => prev + 1)}
+                                        sx={{ borderRadius: "12px" }}
+                                    >
+                                        Next
+                                    </Button>
+                                </Box>
+                </>
             )}
         </Paper>
     );
