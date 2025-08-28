@@ -26,6 +26,12 @@ import TutorAdminDashboard from "./tutoradmin/TutorAdminDashboard";
 import TutorAdminLandingPage from "./tutoradmin/TutorAdminLandingPage";
 import ManageTutorAdmin from './tutoradmin/ManageTutorAdmin';
 
+// Student Components
+import StudentLogin from "./student/StudentLogin";
+import StudentDashboard from "./student/StudentDashboard";
+// import StudentExamList from "./student/StudentExamList";
+// import StudentStartExam from "./student/StudentStartExam";
+
 const App = () => {
   return (
     <Router>
@@ -119,6 +125,33 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
+        {/* Student Routes */}
+        <Route path="/student-login" element={<StudentLogin />} />
+        <Route
+          path="/student-dashboard"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <StudentDashboard />
+            </ProtectedRoute>
+          }
+        />
+        {/* <Route
+          path="/student-exam-list"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <StudentExamList />
+            </ProtectedRoute>
+          }
+        /> */}
+        {/* <Route
+          path="/student-start-exam/:examId"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <StudentStartExam />
+            </ProtectedRoute>
+          }
+        /> */}
       </Routes>
     </Router>
   );
