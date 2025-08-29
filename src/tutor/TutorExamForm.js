@@ -1,13 +1,9 @@
 // src/tutor/TutorExamForm.jsx
 
 import React, { useState, useEffect } from "react";
-// 📚 Important! Please ensure the path below correctly points to your Firebase configuration file.
-// For example, if it's in 'src/config/firebaseConfig.js', the path might be '../config/firebaseConfig'.
 import { db } from "../firebaseConfig";
 import axios from "axios";
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, orderBy } from "firebase/firestore";
-// 📚 Important! Please ensure the path below correctly points to your QuestionRenderer component file.
-// For example, if it's in 'src/components/questionForms.jsx', the path might be '../../components/questionForms'.
 import QuestionRenderer from "./questionForms";
 import { motion } from 'framer-motion';
 import { useNavigate } from "react-router-dom";
@@ -61,20 +57,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     const [snackbarMessage, setSnackbarMessage] = useState("");
     const [isSnackbarOpen, setIsSnackbarOpen] = useState(false);
     const [duration, setDuration] = useState(examData?.duration || "");
-    const [questions, setQuestions] = useState(
-        examData?.questions || [
-            {
-                type: "multiple-choice",
-                question: "",
-                options: [
-                    { id: generateUniqueId(), text: "" },
-                    { id: generateUniqueId(), text: "" },
-                ],
-                answer: "",
-                media: null,
-            },
-        ]
-    );
+    const [questions, setQuestions] = useState([]); // Initialize as empty array, will be populated by useEffect
     const [showScroll, setShowScroll] = useState(false);
     const [questionNumber, setQuestionNumber] = useState("");
     const [searchError, setSearchError] = useState("");
@@ -89,39 +72,66 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     };
 
     useEffect(() => {
+        // Function to ensure all questions and their nested options/pairs have unique IDs
+        const ensureUniqueIds = (qList) => {
+            return qList.map(q => {
+                const newQ = { ...q, id: q.id || generateUniqueId() }; // Ensure main question has an ID
+
+                if (newQ.type === 'multiple-choice') {
+                    // Ensure options also have unique IDs
+                    if (Array.isArray(newQ.options) && newQ.options.length > 0) {
+                        newQ.options = newQ.options.map(opt => 
+                            (typeof opt === 'string') 
+                                ? { id: generateUniqueId(), text: opt } // Convert old string options to objects
+                                : { ...opt, id: opt.id || generateUniqueId() } // Ensure object options have IDs
+                        );
+                    } else {
+                        // If options are missing or empty, initialize with IDs
+                        newQ.options = [{ id: generateUniqueId(), text: "" }, { id: generateUniqueId(), text: "" }];
+                    }
+                } else if (newQ.type === 'true-false') {
+                    // Ensure 'True' / 'False' options are structured with IDs if needed for consistency,
+                    // though for these fixed options, their text is often sufficient as key.
+                    // For now, we'll keep them as strings or simple objects if already defined.
+                    // If they are expected to be objects like MCQ, similar conversion can be applied.
+                    if (!Array.isArray(newQ.options) || newQ.options.length === 0) {
+                        newQ.options = ["True", "False"]; // Default if missing
+                    }
+                } else if (newQ.type === 'match') {
+                    // Ensure matchPairs have IDs for robust handling
+                    if (Array.isArray(newQ.matchPairs) && newQ.matchPairs.length > 0) {
+                        newQ.matchPairs = newQ.matchPairs.map(pair => ({ ...pair, id: pair.id || generateUniqueId() }));
+                    } else {
+                        newQ.matchPairs = [{ id: generateUniqueId(), left: "", right: "" }];
+                    }
+                }
+                return newQ;
+            });
+        };
+
         if (examData) {
             setTitle(examData.title);
             setDuration(examData.duration);
             setSelectedIntake(examData.intakeId || "");
-            const transformedQuestions = examData.questions.map(q => {
-                if (q.type === 'multiple-choice' && q.options.every(opt => typeof opt === 'string')) {
-                    return {
-                        ...q,
-                        options: q.options.map(text => ({ id: generateUniqueId(), text })),
-                    };
-                }
-                return q;
-            });
-            setQuestions(transformedQuestions);
+            // Process existing questions to ensure unique IDs
+            setQuestions(ensureUniqueIds(examData.questions || []));
         } else {
-            // Reset form fields when no examData is provided (for "Create" mode or initial load)
+            // For "Create" mode or initial load without examData
             setTitle("");
             setDuration("");
             setSelectedIntake("");
-            setQuestions([
+            setQuestions(ensureUniqueIds([
                 {
                     type: "multiple-choice",
                     question: "",
-                    options: [
-                        { id: generateUniqueId(), text: "" },
-                        { id: generateUniqueId(), text: "" },
-                    ],
+                    // IDs for initial options are now handled by ensureUniqueIds
+                    options: [{ text: "" }, { text: "" }], // Will get IDs from ensureUniqueIds
                     answer: "",
                     media: null,
                 },
-            ]);
+            ]));
         }
-    }, [examData]);
+    }, [examData]); // Depend on examData to re-run when it changes
 
     const checkScrollTop = () => {
         if (!showScroll && window.pageYOffset > 400) {
@@ -153,7 +163,6 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     useEffect(() => {
         const fetchIntakes = async () => {
             try {
-                // Ensure db is correctly initialized and available globally or passed down
                 const q = query(collection(db, "intakes"), orderBy("name", "asc"));
                 const snapshot = await getDocs(q);
                 const intakesData = snapshot.docs.map(doc => ({
@@ -163,6 +172,8 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                 setAvailableIntakes(intakesData);
             } catch (error) {
                 console.error("Error fetching intakes:", error);
+                setSnackbarMessage("Failed to fetch intake data.");
+                setIsSnackbarOpen(true);
             }
         };
         fetchIntakes();
@@ -177,18 +188,28 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
 
     const addQuestion = (type) => {
         if (readonly) return;
-        const newQuestion = { type, media: null };
+        const newQuestion = { id: generateUniqueId(), type, media: null }; // Assign unique ID to the new question
         if (type === "multiple-choice") {
+            newQuestion.question = ""; // Initialize question text
             newQuestion.options = [
-                { id: generateUniqueId(), text: "" },
+                { id: generateUniqueId(), text: "" }, // Unique IDs for options
                 { id: generateUniqueId(), text: "" },
             ];
+            newQuestion.answer = ""; // Initialize answer
         }
-        if (type === "true-false") newQuestion.options = ["True", "False"];
-        if (["fill-blanks", "short-answer", "reasoning"].includes(type)) newQuestion.options = [];
-        if (type !== "match") newQuestion.question = "";
-        if (type !== "match") newQuestion.answer = "";
-        if (type === "match") newQuestion.matchPairs = [{ left: "", right: "" }];
+        if (type === "true-false") {
+            newQuestion.question = "";
+            newQuestion.options = ["True", "False"]; // Fixed options, text can act as ID if needed.
+            newQuestion.answer = "";
+        }
+        if (["fill-blanks", "short-answer", "reasoning"].includes(type)) {
+            newQuestion.question = "";
+            newQuestion.options = [];
+            newQuestion.answer = "";
+        }
+        if (type === "match") {
+            newQuestion.matchPairs = [{ id: generateUniqueId(), left: "", right: "" }]; // Unique ID for match pair
+        }
         setQuestions([...questions, newQuestion]);
     };
 
@@ -201,6 +222,8 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
 
     const deleteQuestion = (index) => {
         if (readonly) return;
+        // Replaced window.confirm with Snackbar/Alert-like custom component for better UX if needed,
+        // but for now, it's good practice to avoid native alerts if possible.
         if (window.confirm("Are you sure you want to delete this question?")) {
             const updated = [...questions];
             updated.splice(index, 1);
@@ -232,7 +255,6 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
             return response.data.secure_url;
         } catch (err) {
             console.error("Cloudinary upload error:", err);
-            // Replaced alert with Snackbar for better UX
             setSnackbarMessage("Failed to upload media!");
             setIsSnackbarOpen(true);
             return null;
@@ -257,7 +279,11 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
 
         for (let i = 0; i < questions.length; i++) {
             const q = questions[i];
-            const questionId = `question-${i}`;
+            const questionId = `question-${i}`; // This is for scrolling/error focusing, not the data ID
+
+            if (!q.id) { // CRITICAL CHECK: Ensure the question itself has a persistent ID
+                return { message: `Question ${i + 1}: Internal error, missing unique ID. Please re-add this question.`, fieldId: `question-${i}` };
+            }
 
             if (q.type !== "match" && (!q.question || q.question.trim() === "")) {
                 return { message: `Question ${i + 1}: Question text cannot be empty.`, fieldId: `${questionId}-question-text` };
@@ -341,12 +367,24 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                 })
             );
 
+            // Clean up options for true-false and fill-blanks if they shouldn't have them
+            const cleanedQuestions = questionsWithMediaUrls.map(q => {
+                if (q.type === 'true-false' || q.type === 'fill-blanks' || q.type === 'short-answer' || q.type === 'reasoning') {
+                    // For these types, options array is not explicitly saved or needed for student display
+                    // It can be omitted or explicitly set to a default empty array for consistency
+                    const { options, ...rest } = q;
+                    return rest;
+                }
+                return q;
+            });
+
+
             const examDataToSave = {
                 title,
                 duration: Number(duration),
                 intakeId: selectedIntake,
                 isDeleted: 0,
-                questions: questionsWithMediaUrls,
+                questions: cleanedQuestions, // Save cleaned questions
             };
 
             if (examData && examData.id) {
@@ -597,10 +635,12 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                         onChange={({ oldIndex, newIndex }) => setQuestions(arrayMove(questions, oldIndex, newIndex))}
                         renderList={({ children, props }) => <Box {...props}>{children}</Box>}
                         renderItem={({ value, props, index }) => {
-                            const { key, ...restProps } = props;
+                            // Ensure the key for QuestionRenderer uses the question's unique ID
+                            // This is crucial for React to correctly identify and re-render questions
+                            const { key, ...restProps } = props; // `key` from react-movable might be index-based internally
                             return (
                                 <QuestionRenderer
-                                    key={key}
+                                    key={value.id || key} // Use value.id as the primary key
                                     question={value}
                                     index={index}
                                     {...restProps}
@@ -614,7 +654,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                                     setFieldErrors={setFieldErrors}
                                     onChange={readonly ? undefined : (newQuestionData) => handleQuestionState(index, newQuestionData)}
                                     readonly={readonly}
-                                    id={`question-${index}`}
+                                    id={`question-${index}`} // This ID is for scrolling/focusing in the DOM, not the data ID
                                 />
                             );
                         }}
@@ -713,7 +753,6 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                     <ArrowUpwardIcon sx={{ color: 'white', fontSize: 32 }} />
                 </Button>
             </Zoom>
-
             {/* Snackbar for notifications */}
             <Snackbar
                 open={isSnackbarOpen}

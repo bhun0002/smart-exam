@@ -29,8 +29,8 @@ import ManageTutorAdmin from './tutoradmin/ManageTutorAdmin';
 // Student Components
 import StudentLogin from "./student/StudentLogin";
 import StudentDashboard from "./student/StudentDashboard";
-// import StudentExamList from "./student/StudentExamList";
-// import StudentStartExam from "./student/StudentStartExam";
+import StudentExamList from "./student/StudentExamList";
+import StudentTakeExam from "./student/StudentTakeExam";
 
 const App = () => {
   return (
@@ -136,22 +136,22 @@ const App = () => {
             </ProtectedRoute>
           }
         />
-        {/* <Route
+        <Route
           path="/student-exam-list"
           element={
             <ProtectedRoute requiredRole="student">
               <StudentExamList />
             </ProtectedRoute>
           }
-        /> */}
-        {/* <Route
-          path="/student-start-exam/:examId"
+        />
+        <Route
+          path="/student-take-exam/:examId"
           element={
             <ProtectedRoute requiredRole="student">
-              <StudentStartExam />
+              <StudentTakeExam />
             </ProtectedRoute>
           }
-        /> */}
+        />
       </Routes>
     </Router>
   );
