@@ -20,7 +20,10 @@ import {
     Radio,
     TextField,
     Checkbox,
-    FormControl,
+    FormControl, // Import FormControl for Select
+    InputLabel, // Import InputLabel for Select
+    Select, // Import Select component
+    MenuItem, // Import MenuItem for Select options
     FormLabel,
     FormGroup,
     Snackbar,
@@ -34,7 +37,9 @@ import {
     NavigateBefore as NavigateBeforeIcon,
     NavigateNext as NavigateNextIcon,
     DoneAll as DoneAllIcon,
-    Clear as ClearIcon, // Import Clear icon for the new button
+    Clear as ClearIcon,
+    CheckCircleOutline as CheckCircleOutlineIcon, // For answered status
+    RadioButtonUnchecked as RadioButtonUncheckedIcon, // For unanswered status
 } from "@mui/icons-material";
 import { db } from "../firebaseConfig";
 import { doc, getDoc, serverTimestamp, collection, addDoc, updateDoc, query, where, getDocs, setDoc } from "firebase/firestore";
@@ -101,7 +106,8 @@ const StudentQuestionDisplay = ({ question, index, studentAnswer, onAnswerChange
                         fullWidth
                         label="Your Answer"
                         multiline
-                        rows={question.type === "reasoning" ? 6 : 3}
+                        // ⭐ CHANGED: Removed 'rows' and added 'minRows' for auto-growth ⭐
+                        minRows={3} 
                         value={studentAnswer || ""}
                         onChange={handleTextChange}
                         margin="normal"
@@ -151,7 +157,7 @@ const StudentQuestionDisplay = ({ question, index, studentAnswer, onAnswerChange
     };
 
     return (
-        <Paper elevation={3} sx={{ p: { xs: 2, md: 3 }, mb: 4, borderRadius: '16px', bgcolor: '#ffffff' }}>
+        <Paper elevation={3} sx={{ p: { xs: 2, md: 3 }, borderRadius: '16px', bgcolor: '#ffffff' }}>
             <Typography variant="h6" gutterBottom fontWeight="bold" color="#3f51b5">
                 Question {index + 1}
             </Typography>
@@ -435,6 +441,7 @@ const StudentTakeExam = () => {
                     return;
                 }
 
+                // FIXED: Changed 'snapshot.data()' to 'examSnap.data()'
                 const examData = examSnap.data();
                 // Ensure the exam is available and matches the student's intake
                 if (!examData.isAvailable || examData.intakeId !== user.intake) {
@@ -462,7 +469,7 @@ const StudentTakeExam = () => {
 
                 // 2. Determine Submission Document ID and Fetch/Create
                 // Consistent: Use user.id
-                const studentSubmissionDocId = `${examId}_${user.id}`; // Predictable ID
+                const studentSubmissionDocId = `${examId}_${user.id}`;
                 const submissionDocRef = doc(db, "examSubmissions", studentSubmissionDocId);
                 console.log(`[Setup] Attempting to fetch submission with predictable ID: ${studentSubmissionDocId}`);
                 const existingSubmissionSnap = await getDoc(submissionDocRef);
@@ -573,7 +580,7 @@ const StudentTakeExam = () => {
             console.log("Cleaning up timer interval.");
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
-                intervalRef.current = null; // Important to reset the ref
+                intervalRef.current = null;
             }
         };
     }, [loading, exam, submissionId, timeLeft]); // Added timeLeft to dependencies for accurate cleanup
@@ -676,161 +683,131 @@ const StudentTakeExam = () => {
                 minHeight: '100vh',
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'center', // This will center the Grid container
-                py: { xs: 2, md: 4 },
+                py: { xs: 2, md: 4 }, // Vertical padding from outer Box
                 px: { xs: 1, md: 2 }
             }}
         >
-            <Grid container spacing={3} sx={{ width: '100%', maxWidth: 1200, mt: 2, mb: 4 }}>
-                {/* Left Sidebar for Question Navigation */}
-                <Grid item xs={4} sm={3} md={2} sx={{ alignSelf: 'flex-start' }}> {/* ⭐ Changed xs={12} to xs={4} */}
-                    <Paper
-                        elevation={3}
-                        sx={{
-                            p: 2,
-                            borderRadius: '16px',
-                            bgcolor: '#ffffff',
-                            position: { sm: 'sticky' }, // Make sticky on small screens and up
-                            top: { sm: 20 }, // Adjust sticky position
-                            maxHeight: { sm: 'calc(100vh - 40px)' }, // Max height for scrolling
-                            overflowY: 'auto', // Enable vertical scrolling
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                            display: 'flex', // Make the Paper a flex container
-                            flexDirection: 'column', // Stack its direct children vertically
-                            height: '100%', // Ensure Paper takes full height of its Grid cell
-                        }}
-                    >
-                        {/* Box to group Title and Legend, always appearing first */}
-                        <Box sx={{ mb: 2 }}> {/* Margin bottom to separate from buttons */}
-                            <Typography variant="h6" fontWeight="bold" gutterBottom color="#3f51b5">
-                                Questions
-                            </Typography>
-                            {/* Legend items, stacked vertically and aligned */}
-                            <Box sx={{ 
-                                mt: 1, // Reduced mt to bring closer to title
-                                display: 'flex', 
-                                flexDirection: 'column', 
-                                alignItems: { xs: 'center', sm: 'flex-start' } // Align children (Typography)
-                            }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Box component="span" sx={{ display: 'inline-block', width: 12, height: 12, borderRadius: '4px', bgcolor: '#66bb6a', mr: 0.5 }}></Box> Answered
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, display: 'flex', alignItems: 'center' }}>
-                                    <Box component="span" sx={{ display: 'inline-block', width: 12, height: 12, borderRadius: '4px', bgcolor: '#bdbdbd', mr: 0.5 }}></Box> Unanswered
-                                </Typography>
-                            </Box>
-                        </Box>
-                        
-                        {/* Box for question buttons - now always below the grouped title/legend */}
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
-                            {questions.map((q, index) => {
-                                const answered = isQuestionAnswered(q, studentAnswers);
-                                const isCurrent = index === currentQuestionIndex;
-                                return (
-                                    <Tooltip key={q.id} title={answered ? "Answered" : "Not Answered"}>
-                                        <Button
-                                            variant="contained"
-                                            onClick={() => setCurrentQuestionIndex(index)}
-                                            sx={{
-                                                minWidth: '38px', // Fixed width for squares
-                                                width: '38px',
-                                                height: '38px',
-                                                borderRadius: '8px',
-                                                fontWeight: 'bold',
-                                                fontSize: '0.85rem',
-                                                bgcolor: isCurrent ? '#3f51b5' : (answered ? '#66bb6a' : '#bdbdbd'), // Blue for current, green for answered, grey for unanswered
-                                                color: isCurrent ? 'white' : (answered ? 'white' : '#424242'),
-                                                '&:hover': {
-                                                    bgcolor: isCurrent ? '#303f9f' : (answered ? '#43a047' : '#9e9e9e'),
-                                                },
-                                                transition: 'background-color 0.2s ease-in-out',
-                                            }}
-                                        >
-                                            {index + 1}
-                                        </Button>
-                                    </Tooltip>
-                                );
-                            })}
-                        </Box>
-                    </Paper>
-                </Grid>
-
-                {/* Main Exam Content Area */}
-                <Grid item xs={8} sm={9} md={10}> {/* ⭐ Changed xs={12} to xs={8} */}
+            <Grid container spacing={3} sx={{
+                width: '100%',
+                // Removed maxWidth from here as it's now handled by the Paper itself for simpler centering
+                margin: '0 auto', // Center the grid container horizontally
+                flexGrow: 1, // Allow grid to grow vertically to fill parent Box
+                height: '100%', // Make Grid container fill vertical space
+                alignItems: 'flex-start', // Align all grid items to the top
+                justifyContent: 'center', // ⭐ NEW: Center Grid items horizontally ⭐
+            }}>
+                {/* Main Exam Content Area (Now full width) */}
+                <Grid item xs={12} sm={12} md={12} sx={{ display: 'flex', justifyContent: 'center' }}> {/* ⭐ NEW: Added flex and justifyContent for centering Paper ⭐ */}
                     <Paper
                         elevation={6}
                         sx={{
-                            width: '100%',
+                            width: '800px', // Fixed pixel width
+                            maxWidth: '100%', // Ensures it doesn't overflow on small screens
+                            // Removed margin: '0 auto' from Paper as parent Grid item handles centering
                             borderRadius: '20px',
                             p: { xs: 2, md: 4 },
-                            mb: 3,
                             bgcolor: '#ffffff',
                             boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+                            height: '700px', // Fixed pixel height
+                            display: 'flex', // Make Paper itself a flex container
+                            flexDirection: 'column', // Stack its content vertically
                         }}
                     >
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-                            <Button
-                                variant="outlined"
-                                startIcon={<ArrowBackIcon />}
-                                onClick={handleBackToList}
-                                sx={{
-                                    borderColor: '#388e3c', color: '#388e3c', borderRadius: '12px', fontWeight: 'bold',
-                                    '&:hover': { backgroundColor: '#e8f5e9' },
-                                }}
-                            >
-                                Back to List
-                            </Button>
-                            <Typography variant="h5" component="h1" fontWeight="bold" color="#388e3c" flexGrow={1} textAlign="center">
-                                {exam.title}
-                            </Typography>
-                            <Paper
-                                variant="outlined"
-                                sx={{
-                                    p: 1,
-                                    minWidth: 100,
-                                    textAlign: 'center',
-                                    borderRadius: '10px',
-                                    bgcolor: timeLeft <= 60 ? '#ffebee' : '#f1f8e9', // Redder if less than 1 min
-                                    borderColor: timeLeft <= 60 ? '#ef5350' : '#c8e6c9',
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-                                }}
-                            >
-                                <Typography variant="h6" fontWeight="bold" color={timeLeft <= 60 ? '#ef5350' : '#2e7d32'}>
-                                    {formatTime(timeLeft)}
+                        {/* Fixed Header Section within Main Paper */}
+                        <Box sx={{ mb: 3 }}> {/* Added mb here to separate header from scrollable content */}
+                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<ArrowBackIcon />}
+                                    onClick={handleBackToList}
+                                    sx={{
+                                        borderColor: '#388e3c', color: '#388e3c', borderRadius: '12px', fontWeight: 'bold',
+                                        '&:hover': { backgroundColor: '#e8f5e9' },
+                                    }}
+                                >
+                                    Back to List
+                                </Button>
+                                <Typography variant="h5" component="h1" fontWeight="bold" color="#388e3c" flexGrow={1} textAlign="center">
+                                    {exam.title}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Time Left
+                                <Paper
+                                    variant="outlined"
+                                    sx={{
+                                        p: 1,
+                                        minWidth: 100,
+                                        textAlign: 'center',
+                                        borderRadius: '10px',
+                                        bgcolor: timeLeft <= 60 ? '#ffebee' : '#f1f8e9',
+                                        borderColor: timeLeft <= 60 ? '#ef5350' : '#c8e6c9',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                                    }}
+                                >
+                                    <Typography variant="h6" fontWeight="bold" color={timeLeft <= 60 ? '#ef5350' : '#2e7d32'}>
+                                        {formatTime(timeLeft)}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Time Left
+                                    </Typography>
+                                </Paper>
+                            </Box>
+
+                            <LinearProgress
+                                variant="determinate"
+                                value={progress}
+                                sx={{
+                                    height: 10,
+                                    borderRadius: 5,
+                                    bgcolor: '#e0f2f7',
+                                    '& .MuiLinearProgress-bar': {
+                                        bgcolor: '#388e3c',
+                                        borderRadius: 5,
+                                    },
+                                    mb: 2
+                                }}
+                            />
+                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={1}>
+                                <Typography variant="body2" color="text.secondary">
+                                    Question {currentQuestionIndex + 1} of {questions.length} ({answeredCount} answered)
                                 </Typography>
-                            </Paper>
+                                {/* ⭐ NEW: Question Selector Dropdown ⭐ */}
+                                <FormControl sx={{ minWidth: 180, flexShrink: 0 }} size="small">
+                                    <InputLabel id="question-select-label">Go to Question</InputLabel>
+                                    <Select
+                                        labelId="question-select-label"
+                                        value={currentQuestionIndex}
+                                        label="Go to Question"
+                                        onChange={(e) => setCurrentQuestionIndex(e.target.value)}
+                                        sx={{ borderRadius: '12px', bgcolor: '#f0f4c3' }}
+                                    >
+                                        {questions.map((q, index) => (
+                                            <MenuItem key={q.id} value={index}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    {isQuestionAnswered(q, studentAnswers) ? (
+                                                        <CheckCircleOutlineIcon color="success" fontSize="small" />
+                                                    ) : (
+                                                        <RadioButtonUncheckedIcon color="disabled" fontSize="small" />
+                                                    )}
+                                                    Question {index + 1}
+                                                </Box>
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
                         </Box>
 
-                        <LinearProgress
-                            variant="determinate"
-                            value={progress}
-                            sx={{
-                                height: 10,
-                                borderRadius: 5,
-                                bgcolor: '#e0f2f7',
-                                '& .MuiLinearProgress-bar': {
-                                    bgcolor: '#388e3c',
-                                    borderRadius: 5,
-                                },
-                                mb: 2
-                            }}
-                        />
-                        <Typography variant="body2" color="text.secondary" textAlign="right" mb={3}>
-                            Question {currentQuestionIndex + 1} of {questions.length} ({answeredCount} answered)
-                        </Typography>
+                        {/* ⭐ SCROLLABLE Question Display Area ⭐ */}
+                        <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                            <StudentQuestionDisplay
+                                question={currentQuestion}
+                                index={currentQuestionIndex}
+                                studentAnswer={studentAnswers[currentQuestion.id]}
+                                onAnswerChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
+                            />
+                        </Box>
 
-                        {/* Question Display Area */}
-                        <StudentQuestionDisplay
-                            question={currentQuestion}
-                            index={currentQuestionIndex}
-                            studentAnswer={studentAnswers[currentQuestion.id]}
-                            onAnswerChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
-                        />
-
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mt={4} flexWrap="wrap" gap={2}>
+                        {/* Fixed Footer Section within Main Paper */}
+                        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} sx={{ mt: 'auto', pt: 2, borderTop: '1px solid #eee' }}> {/* mt: 'auto' pushes to bottom, pt for visual separation */}
                             <Button
                                 variant="outlined"
                                 onClick={handlePreviousQuestion}
@@ -844,7 +821,6 @@ const StudentTakeExam = () => {
                                 Previous
                             </Button>
                             
-                            {/* NEW: Clear Response Button */}
                             <Button
                                 variant="outlined"
                                 color="error"
@@ -888,7 +864,7 @@ const StudentTakeExam = () => {
                                 </Button>
                             )}
                         </Box>
-                        <Box mt={3} textAlign="center">
+                        <Box mt={2} textAlign="center">
                             <Button
                                 variant="text"
                                 color="error"
