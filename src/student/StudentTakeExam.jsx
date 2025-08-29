@@ -26,12 +26,15 @@ import {
     Snackbar,
     Alert as MuiAlert,
     Avatar,
+    Grid, // Import Grid for layout
+    Tooltip, // Import Tooltip for hover info
 } from "@mui/material";
 import {
     ArrowBack as ArrowBackIcon,
     NavigateBefore as NavigateBeforeIcon,
     NavigateNext as NavigateNextIcon,
     DoneAll as DoneAllIcon,
+    Clear as ClearIcon, // Import Clear icon for the new button
 } from "@mui/icons-material";
 import { db } from "../firebaseConfig";
 import { doc, getDoc, serverTimestamp, collection, addDoc, updateDoc, query, where, getDocs, setDoc } from "firebase/firestore";
@@ -119,7 +122,7 @@ const StudentQuestionDisplay = ({ question, index, studentAnswer, onAnswerChange
                             Match the pairs:
                         </Typography>
                         {question.matchPairs.map((pair, i) => (
-                            <Box key={i} sx={{ display: 'flex', alignItems: 'center', mb: 1.5, gap: 1 }}>
+                            <Box key={pair.id || i} sx={{ display: 'flex', alignItems: 'center', mb: 1.5, gap: 1 }}>
                                 <TextField
                                     label={`Left ${i + 1}`}
                                     value={pair.left}
@@ -174,7 +177,7 @@ const StudentQuestionDisplay = ({ question, index, studentAnswer, onAnswerChange
 const StudentTakeExam = () => {
     const { examId } = useParams();
     const navigate = useNavigate();
-    const { user, isLoading: isAuthLoading } = useAuth();
+    const { user, isLoading: isAuthLoading } = useAuth(); // Use user.id for consistency
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -223,10 +226,41 @@ const StudentTakeExam = () => {
         setSnackbarOpen(false);
     };
 
+    // Helper function to check if a question is answered
+    const isQuestionAnswered = useCallback((question, answers) => {
+        const answer = answers[question.id];
+
+        if (!answer) {
+            return false; // No answer at all
+        }
+
+        switch (question.type) {
+            case "multiple-choice":
+            case "true-false":
+                return !!answer; // Check if a value exists for MCQs and True/False
+            case "fill-blanks":
+            case "short-answer":
+            case "reasoning":
+                return typeof answer === 'string' && answer.trim().length > 0; // Check for non-empty string
+            case "match":
+                // For match questions, check if all 'left' parts in the question have a corresponding non-empty 'right' answer
+                if (typeof answer === 'object' && answer !== null) {
+                    const questionPairs = question.matchPairs || [];
+                    return questionPairs.every(pair => 
+                        pair.left && typeof answer[pair.left] === 'string' && answer[pair.left].trim().length > 0
+                    );
+                }
+                return false;
+            default:
+                return false;
+        }
+    }, []);
+
     // New function to handle navigation back to the exam list and clear the session storage key
     // This useCallback is now stable as it only depends on navigate
     const handleBackToList = useCallback(() => {
         const currentUser = userRef.current; // Use ref
+        // Consistent: Use currentUser.id
         const unlockedKey = currentUser?.id ? `examUnlocked-${currentUser.id}-${examId}` : null;
         if (unlockedKey) {
             sessionStorage.removeItem(unlockedKey);
@@ -282,6 +316,7 @@ const StudentTakeExam = () => {
             setSnackbarOpen(true);
 
             // Clear the access token after successful submission
+            // Consistent: Use currentUser.id
             const unlockedKey = currentUser?.id ? `examUnlocked-${currentUser.id}-${currentExam.id}` : null;
             if (unlockedKey) { // Ensure key is valid before removing
                 sessionStorage.removeItem(unlockedKey);
@@ -372,6 +407,7 @@ const StudentTakeExam = () => {
             }
 
             // --- SECURITY CHECK: Verify exam unlocked token ---
+            // Consistent: Use user.id
             const unlockedKey = user?.id ? `examUnlocked-${user.id}-${examId}` : null;
             console.log(`[Setup] Checking sessionStorage key: ${unlockedKey}`);
             if (!user?.id || sessionStorage.getItem(unlockedKey) !== 'true') {
@@ -425,6 +461,7 @@ const StudentTakeExam = () => {
                 console.log("[Setup] Exam details fetched and questions set.");
 
                 // 2. Determine Submission Document ID and Fetch/Create
+                // Consistent: Use user.id
                 const studentSubmissionDocId = `${examId}_${user.id}`; // Predictable ID
                 const submissionDocRef = doc(db, "examSubmissions", studentSubmissionDocId);
                 console.log(`[Setup] Attempting to fetch submission with predictable ID: ${studentSubmissionDocId}`);
@@ -470,6 +507,7 @@ const StudentTakeExam = () => {
                     console.log(`[Setup] No existing submission found with ID ${studentSubmissionDocId}. Creating new submission.`);
                     const newSubmissionData = {
                         examId: examId,
+                        // Consistent: Use user.id
                         studentId: user.id,
                         studentName: user.name || user.email,
                         intakeId: user.intake,
@@ -510,7 +548,7 @@ const StudentTakeExam = () => {
             }
             console.log("[Cleanup] StudentTakeExam component unmounted. Timer cleared.");
         };
-    }, [examId, user, isAuthLoading, navigate, handleBackToList]);
+    }, [examId, user, isAuthLoading, navigate, handleBackToList, isQuestionAnswered]); // Added isQuestionAnswered to dependencies
 
     // Timer setup logic (runs once when conditions met, then cleans up only on unmount/conditions false)
     useEffect(() => {
@@ -538,7 +576,7 @@ const StudentTakeExam = () => {
                 intervalRef.current = null; // Important to reset the ref
             }
         };
-    }, [loading, exam, submissionId]);
+    }, [loading, exam, submissionId, timeLeft]); // Added timeLeft to dependencies for accurate cleanup
 
     // Auto-submission when time runs out (separate effect)
     useEffect(() => {
@@ -548,7 +586,7 @@ const StudentTakeExam = () => {
             // Call handleSubmitExam with the latest values from refs
             handleSubmitExam(submissionIdRef.current, examRef.current?.duration * 60, studentAnswersRef.current, 0); 
         }
-    }, [timeLeft, loading, submitDialogOpen, finishEarlyDialogOpen, handleSubmitExam]);
+    }, [timeLeft, loading, submitDialogOpen, finishEarlyDialogOpen, handleSubmitExam, exam, submissionId]); // Added exam, submissionId for clarity and correct triggering
 
     // Handles answer changes from StudentQuestionDisplay
     const handleAnswerChange = useCallback((questionId, answer) => {
@@ -557,6 +595,23 @@ const StudentTakeExam = () => {
             [questionId]: answer,
         }));
     }, []);
+
+    // New function to clear the response for the current question
+    const handleClearResponse = useCallback(() => {
+        const currentQuestionId = questions[currentQuestionIndex]?.id;
+        if (currentQuestionId) {
+            setStudentAnswers((prevAnswers) => {
+                const newAnswers = { ...prevAnswers };
+                delete newAnswers[currentQuestionId]; // Remove the answer for the current question
+                return newAnswers;
+            });
+            setSnackbarMessage("Response cleared for this question.");
+            setSnackbarSeverity("info");
+            setSnackbarOpen(true);
+            saveStudentAnswersToDb(); // Trigger immediate auto-save for the cleared response
+        }
+    }, [currentQuestionIndex, questions, saveStudentAnswersToDb]);
+
 
     const handleNextQuestion = () => {
         if (currentQuestionIndex < questions.length - 1) {
@@ -611,7 +666,7 @@ const StudentTakeExam = () => {
 
     const currentQuestion = questions[currentQuestionIndex];
     const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
-    const answeredCount = Object.keys(studentAnswers).length;
+    const answeredCount = questions.filter(q => isQuestionAnswered(q, studentAnswers)).length; // Count actually answered questions
     const totalQuestions = questions.length;
 
     return (
@@ -621,136 +676,231 @@ const StudentTakeExam = () => {
                 minHeight: '100vh',
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'center',
+                alignItems: 'center', // This will center the Grid container
                 py: { xs: 2, md: 4 },
                 px: { xs: 1, md: 2 }
             }}
         >
-            <Paper
-                elevation={6}
-                sx={{
-                    width: '100%',
-                    maxWidth: 900,
-                    borderRadius: '20px',
-                    p: { xs: 2, md: 4 },
-                    mb: 3,
-                    bgcolor: '#ffffff',
-                    boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-                }}
-            >
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-                    <Button
-                        variant="outlined"
-                        startIcon={<ArrowBackIcon />}
-                        onClick={handleBackToList} // Use the new handler here
-                        sx={{
-                            borderColor: '#388e3c', color: '#388e3c', borderRadius: '12px', fontWeight: 'bold',
-                            '&:hover': { backgroundColor: '#e8f5e9' },
-                        }}
-                    >
-                        Back to List
-                    </Button>
-                    <Typography variant="h5" component="h1" fontWeight="bold" color="#388e3c" flexGrow={1} textAlign="center">
-                        {exam.title}
-                    </Typography>
+            <Grid container spacing={3} sx={{ width: '100%', maxWidth: 1200, mt: 2, mb: 4 }}>
+                {/* Left Sidebar for Question Navigation */}
+                <Grid item xs={4} sm={3} md={2} sx={{ alignSelf: 'flex-start' }}> {/* ⭐ Changed xs={12} to xs={4} */}
                     <Paper
-                        variant="outlined"
+                        elevation={3}
                         sx={{
-                            p: 1,
-                            minWidth: 100,
-                            textAlign: 'center',
-                            borderRadius: '10px',
-                            bgcolor: timeLeft <= 60 ? '#ffebee' : '#f1f8e9', // Redder if less than 1 min
-                            borderColor: timeLeft <= 60 ? '#ef5350' : '#c8e6c9',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                            p: 2,
+                            borderRadius: '16px',
+                            bgcolor: '#ffffff',
+                            position: { sm: 'sticky' }, // Make sticky on small screens and up
+                            top: { sm: 20 }, // Adjust sticky position
+                            maxHeight: { sm: 'calc(100vh - 40px)' }, // Max height for scrolling
+                            overflowY: 'auto', // Enable vertical scrolling
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                            display: 'flex', // Make the Paper a flex container
+                            flexDirection: 'column', // Stack its direct children vertically
+                            height: '100%', // Ensure Paper takes full height of its Grid cell
                         }}
                     >
-                        <Typography variant="h6" fontWeight="bold" color={timeLeft <= 60 ? '#ef5350' : '#2e7d32'}>
-                            {formatTime(timeLeft)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            Time Left
-                        </Typography>
+                        {/* Box to group Title and Legend, always appearing first */}
+                        <Box sx={{ mb: 2 }}> {/* Margin bottom to separate from buttons */}
+                            <Typography variant="h6" fontWeight="bold" gutterBottom color="#3f51b5">
+                                Questions
+                            </Typography>
+                            {/* Legend items, stacked vertically and aligned */}
+                            <Box sx={{ 
+                                mt: 1, // Reduced mt to bring closer to title
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                alignItems: { xs: 'center', sm: 'flex-start' } // Align children (Typography)
+                            }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Box component="span" sx={{ display: 'inline-block', width: 12, height: 12, borderRadius: '4px', bgcolor: '#66bb6a', mr: 0.5 }}></Box> Answered
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, display: 'flex', alignItems: 'center' }}>
+                                    <Box component="span" sx={{ display: 'inline-block', width: 12, height: 12, borderRadius: '4px', bgcolor: '#bdbdbd', mr: 0.5 }}></Box> Unanswered
+                                </Typography>
+                            </Box>
+                        </Box>
+                        
+                        {/* Box for question buttons - now always below the grouped title/legend */}
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+                            {questions.map((q, index) => {
+                                const answered = isQuestionAnswered(q, studentAnswers);
+                                const isCurrent = index === currentQuestionIndex;
+                                return (
+                                    <Tooltip key={q.id} title={answered ? "Answered" : "Not Answered"}>
+                                        <Button
+                                            variant="contained"
+                                            onClick={() => setCurrentQuestionIndex(index)}
+                                            sx={{
+                                                minWidth: '38px', // Fixed width for squares
+                                                width: '38px',
+                                                height: '38px',
+                                                borderRadius: '8px',
+                                                fontWeight: 'bold',
+                                                fontSize: '0.85rem',
+                                                bgcolor: isCurrent ? '#3f51b5' : (answered ? '#66bb6a' : '#bdbdbd'), // Blue for current, green for answered, grey for unanswered
+                                                color: isCurrent ? 'white' : (answered ? 'white' : '#424242'),
+                                                '&:hover': {
+                                                    bgcolor: isCurrent ? '#303f9f' : (answered ? '#43a047' : '#9e9e9e'),
+                                                },
+                                                transition: 'background-color 0.2s ease-in-out',
+                                            }}
+                                        >
+                                            {index + 1}
+                                        </Button>
+                                    </Tooltip>
+                                );
+                            })}
+                        </Box>
                     </Paper>
-                </Box>
+                </Grid>
 
-                <LinearProgress
-                    variant="determinate"
-                    value={progress}
-                    sx={{
-                        height: 10,
-                        borderRadius: 5,
-                        bgcolor: '#e0f2f7',
-                        '& .MuiLinearProgress-bar': {
-                            bgcolor: '#388e3c',
-                            borderRadius: 5,
-                        },
-                        mb: 2
-                    }}
-                />
-                <Typography variant="body2" color="text.secondary" textAlign="right" mb={3}>
-                    Question {currentQuestionIndex + 1} of {questions.length} ({answeredCount} answered)
-                </Typography>
-
-                {/* Question Display Area */}
-                <StudentQuestionDisplay
-                    question={currentQuestion}
-                    index={currentQuestionIndex}
-                    studentAnswer={studentAnswers[currentQuestion.id]}
-                    onAnswerChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
-                />
-
-                <Box display="flex" justifyContent="space-between" alignItems="center" mt={4} flexWrap="wrap" gap={2}>
-                    <Button
-                        variant="outlined"
-                        onClick={handlePreviousQuestion}
-                        disabled={currentQuestionIndex === 0}
-                        startIcon={<NavigateBeforeIcon />}
+                {/* Main Exam Content Area */}
+                <Grid item xs={8} sm={9} md={10}> {/* ⭐ Changed xs={12} to xs={8} */}
+                    <Paper
+                        elevation={6}
                         sx={{
-                            borderRadius: '12px', borderColor: '#4CAF50', color: '#4CAF50', fontWeight: 'bold',
-                            '&:hover': { backgroundColor: '#e8f5e9' },
+                            width: '100%',
+                            borderRadius: '20px',
+                            p: { xs: 2, md: 4 },
+                            mb: 3,
+                            bgcolor: '#ffffff',
+                            boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
                         }}
                     >
-                        Previous
-                    </Button>
-                    {currentQuestionIndex === questions.length - 1 ? (
-                        <Button
-                            variant="contained"
-                            color="success"
-                            onClick={() => setSubmitDialogOpen(true)}
-                            startIcon={<DoneAllIcon />}
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
+                            <Button
+                                variant="outlined"
+                                startIcon={<ArrowBackIcon />}
+                                onClick={handleBackToList}
+                                sx={{
+                                    borderColor: '#388e3c', color: '#388e3c', borderRadius: '12px', fontWeight: 'bold',
+                                    '&:hover': { backgroundColor: '#e8f5e9' },
+                                }}
+                            >
+                                Back to List
+                            </Button>
+                            <Typography variant="h5" component="h1" fontWeight="bold" color="#388e3c" flexGrow={1} textAlign="center">
+                                {exam.title}
+                            </Typography>
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    p: 1,
+                                    minWidth: 100,
+                                    textAlign: 'center',
+                                    borderRadius: '10px',
+                                    bgcolor: timeLeft <= 60 ? '#ffebee' : '#f1f8e9', // Redder if less than 1 min
+                                    borderColor: timeLeft <= 60 ? '#ef5350' : '#c8e6c9',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                                }}
+                            >
+                                <Typography variant="h6" fontWeight="bold" color={timeLeft <= 60 ? '#ef5350' : '#2e7d32'}>
+                                    {formatTime(timeLeft)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    Time Left
+                                </Typography>
+                            </Paper>
+                        </Box>
+
+                        <LinearProgress
+                            variant="determinate"
+                            value={progress}
                             sx={{
-                                borderRadius: '12px', fontWeight: 'bold',
-                                bgcolor: '#388e3c', '&:hover': { bgcolor: '#2e7d32' },
+                                height: 10,
+                                borderRadius: 5,
+                                bgcolor: '#e0f2f7',
+                                '& .MuiLinearProgress-bar': {
+                                    bgcolor: '#388e3c',
+                                    borderRadius: 5,
+                                },
+                                mb: 2
                             }}
-                        >
-                            Submit Exam
-                        </Button>
-                    ) : (
-                        <Button
-                            variant="contained"
-                            onClick={handleNextQuestion}
-                            endIcon={<NavigateNextIcon />}
-                            sx={{
-                                borderRadius: '12px', fontWeight: 'bold',
-                                bgcolor: '#4CAF50', '&:hover': { bgcolor: '#388e3c' },
-                            }}
-                        >
-                            Next Question
-                        </Button>
-                    )}
-                </Box>
-                <Box mt={3} textAlign="center">
-                    <Button
-                        variant="text"
-                        color="error"
-                        onClick={handleFinishEarly}
-                        sx={{ borderRadius: '12px', fontWeight: 'bold' }}
-                    >
-                        Finish Exam Early
-                    </Button>
-                </Box>
-            </Paper>
+                        />
+                        <Typography variant="body2" color="text.secondary" textAlign="right" mb={3}>
+                            Question {currentQuestionIndex + 1} of {questions.length} ({answeredCount} answered)
+                        </Typography>
+
+                        {/* Question Display Area */}
+                        <StudentQuestionDisplay
+                            question={currentQuestion}
+                            index={currentQuestionIndex}
+                            studentAnswer={studentAnswers[currentQuestion.id]}
+                            onAnswerChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
+                        />
+
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mt={4} flexWrap="wrap" gap={2}>
+                            <Button
+                                variant="outlined"
+                                onClick={handlePreviousQuestion}
+                                disabled={currentQuestionIndex === 0}
+                                startIcon={<NavigateBeforeIcon />}
+                                sx={{
+                                    borderRadius: '12px', borderColor: '#4CAF50', color: '#4CAF50', fontWeight: 'bold',
+                                    '&:hover': { backgroundColor: '#e8f5e9' },
+                                }}
+                            >
+                                Previous
+                            </Button>
+                            
+                            {/* NEW: Clear Response Button */}
+                            <Button
+                                variant="outlined"
+                                color="error"
+                                onClick={handleClearResponse}
+                                startIcon={<ClearIcon />}
+                                sx={{
+                                    borderRadius: '12px', 
+                                    borderColor: '#ef5350', 
+                                    color: '#ef5350', 
+                                    fontWeight: 'bold',
+                                    '&:hover': { backgroundColor: '#ffebee' },
+                                }}
+                            >
+                                Clear Response
+                            </Button>
+
+                            {currentQuestionIndex === questions.length - 1 ? (
+                                <Button
+                                    variant="contained"
+                                    color="success"
+                                    onClick={() => setSubmitDialogOpen(true)}
+                                    startIcon={<DoneAllIcon />}
+                                    sx={{
+                                        borderRadius: '12px', fontWeight: 'bold',
+                                        bgcolor: '#388e3c', '&:hover': { bgcolor: '#2e7d32' },
+                                    }}
+                                >
+                                    Submit Exam
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="contained"
+                                    onClick={handleNextQuestion}
+                                    endIcon={<NavigateNextIcon />}
+                                    sx={{
+                                        borderRadius: '12px', fontWeight: 'bold',
+                                        bgcolor: '#4CAF50', '&:hover': { bgcolor: '#388e3c' },
+                                    }}
+                                >
+                                    Next Question
+                                </Button>
+                            )}
+                        </Box>
+                        <Box mt={3} textAlign="center">
+                            <Button
+                                variant="text"
+                                color="error"
+                                onClick={handleFinishEarly}
+                                sx={{ borderRadius: '12px', fontWeight: 'bold' }}
+                            >
+                                Finish Exam Early
+                            </Button>
+                        </Box>
+                    </Paper>
+                </Grid>
+            </Grid>
 
             {/* Submit Confirmation Dialog */}
             <Dialog

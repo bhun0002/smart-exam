@@ -26,17 +26,25 @@ import {
     InputAdornment,
     CircularProgress, // For loading indicator
     Avatar, // FIXED: Import Avatar
+    AppBar, // Import AppBar
+    Toolbar, // Import Toolbar
+    FormControl, // Import FormControl for select dropdown
+    InputLabel, // Import InputLabel for select dropdown
+    Select, // Import Select for dropdown
+    MenuItem // Import MenuItem for select dropdown options
 } from "@mui/material";
 import {
     Search as SearchIcon,
     ArrowBack as ArrowBackIcon, // For back button
     PlayCircleOutline as PlayCircleOutlineIcon, // For "Attempt Exam" button
+    CheckCircleOutline as CheckCircleOutlineIcon, // Import for 'Submitted' chip icon
+    Logout as LogoutIcon // Import for logout button
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '../AuthContext'; // Import useAuth to get user context
 
 const StudentExamList = () => {
-    const { user, isLoading: isAuthLoading } = useAuth(); // Get user and auth loading state
+    const { user, isLoading: isAuthLoading, logout } = useAuth(); // Get user, auth loading state, and logout
     const [exams, setExams] = useState([]);
     const [intakes, setIntakes] = useState({});
     const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -45,6 +53,7 @@ const StudentExamList = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true); // Loading state for exams
+    const [filterStatus, setFilterStatus] = useState("all"); // New state for filtering by status: "all", "submitted", "attemptable"
     const pageSize = 10;
     const navigate = useNavigate();
 
@@ -55,6 +64,11 @@ const StudentExamList = () => {
 
     const examsCollectionRef = collection(db, "exams");
     const intakesCollectionRef = collection(db, "intakes");
+
+    const handleLogout = () => {
+        logout();
+        navigate("/student-login");
+    };
 
     /**
      * Handles closing the Snackbar notification.
@@ -94,19 +108,21 @@ const StudentExamList = () => {
     }, []);
 
     /**
-     * Fetches exams based on student's intake and availability status.
+     * Fetches exams based on student's intake and availability status,
+     * and also checks for submitted status.
      */
-    const fetchExams = async (studentIntakeId) => {
+    const fetchExams = async (studentIntakeId, studentId) => {
         setLoading(true); // Start loading
         try {
-            if (!studentIntakeId) {
-                setSnackbarMessage("Student intake ID not found. Cannot load exams.");
+            if (!studentIntakeId || !studentId) {
+                setSnackbarMessage("Student intake ID or User ID not found. Cannot load exams.");
                 setSnackbarSeverity("error");
                 setIsSnackbarOpen(true);
                 setLoading(false);
                 return;
             }
 
+            // Step 1: Fetch the list of available exams for the student's intake
             const examsQuery = query(
                 examsCollectionRef,
                 where("isDeleted", "==", 0), // Not soft-deleted
@@ -114,18 +130,32 @@ const StudentExamList = () => {
                 where("intakeId", "==", studentIntakeId), // Filter by student's intake
                 orderBy("createdAt", "desc") // Order by creation date
             );
-            const snapshot = await getDocs(examsQuery);
-            const examsData = snapshot.docs.map((doc) => ({
+            const examsSnapshot = await getDocs(examsQuery);
+            const examsData = examsSnapshot.docs.map((doc) => ({
                 id: doc.id,
                 ...doc.data(),
             }));
             
-            // Map intake IDs to names using the fetched intakesMap
-            const examsWithIntakeNames = examsData.map(exam => ({
+            // Step 2: Fetch the list of exams already submitted by the student
+            const submissionsRef = collection(db, "examSubmissions");
+            const submissionsQuery = query(
+              submissionsRef,
+              where("studentId", "==", studentId), // Use the student's ID for submissions
+              where("isSubmitted", "==", true) // Filter for explicitly submitted exams
+            );
+            const submissionsSnapshot = await getDocs(submissionsQuery);
+            const submittedExamIds = new Set(
+              submissionsSnapshot.docs.map(doc => doc.data().examId)
+            );
+
+            // Step 3: Combine data, map intake IDs to names, and add 'isSubmitted' flag
+            const examsWithStatus = examsData.map(exam => ({
                 ...exam,
-                intakeName: intakes[exam.intakeId] || 'Unknown Intake'
+                intakeName: intakes[exam.intakeId] || 'Unknown Intake',
+                isSubmitted: submittedExamIds.has(exam.id), // Add the submitted flag
             }));
-            setExams(examsWithIntakeNames);
+            setExams(examsWithStatus);
+
         } catch (error) {
             console.error("Error fetching exams:", error);
             setSnackbarMessage("Failed to fetch exams list.");
@@ -137,7 +167,7 @@ const StudentExamList = () => {
     };
 
     /**
-     * Effect hook to fetch exams once intakes are loaded and studentIntakeId is available.
+     * Effect hook to fetch exams once intakes are loaded and student is authenticated.
      */
     useEffect(() => {
         // Redirect if auth is not loading and no user is present
@@ -146,24 +176,33 @@ const StudentExamList = () => {
             return;
         }
 
-        if (Object.keys(intakes).length > 0 && user?.intake) {
-            fetchExams(user.intake);
+        // Only fetch exams if intakes are loaded and user object (with intake and id) is available
+        if (Object.keys(intakes).length > 0 && user?.intake && user?.id) {
+            fetchExams(user.intake, user.id); // Pass user.id to fetch submissions
         }
     }, [intakes, user, isAuthLoading, navigate]); // Depend on intakes, user, and isAuthLoading
 
     /**
-     * Filters exams based on the search term.
+     * Filters exams based on the search term and new filter status.
      */
-    const filteredExams = exams.filter(exam =>
-        exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (exam.intakeName && exam.intakeName.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredAndStatusExams = exams.filter(exam => {
+        const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (exam.intakeName && exam.intakeName.toLowerCase().includes(searchTerm.toLowerCase()));
+
+        if (filterStatus === "submitted") {
+            return matchesSearch && exam.isSubmitted;
+        } else if (filterStatus === "attemptable") {
+            return matchesSearch && !exam.isSubmitted;
+        }
+        return matchesSearch; // "all" or any other status
+    });
+
 
     /**
      * Calculates total pages and slices exams for current page.
      */
-    const totalPages = Math.ceil(filteredExams.length / pageSize);
-    const paginatedExams = filteredExams.slice(
+    const totalPages = Math.ceil(filteredAndStatusExams.length / pageSize);
+    const paginatedExams = filteredAndStatusExams.slice(
         (currentPage - 1) * pageSize,
         currentPage * pageSize
     );
@@ -173,11 +212,17 @@ const StudentExamList = () => {
      * @param {object} exam - The exam object to attempt.
      */
     const handleAttemptExam = (exam) => {
-        console.log("[StudentExamList] handleAttemptExam - Current user state:", user); // Debug log
-        // CHANGED: Using user.id instead of user.uid
         if (!user?.id) { 
             setSnackbarMessage(`Authentication required to attempt exam. Please log in. (User ID: ${user?.id || 'N/A'})`); 
             setSnackbarSeverity("error");
+            setIsSnackbarOpen(true);
+            return;
+        }
+
+        // Prevent attempting if already submitted
+        if (exam.isSubmitted) {
+            setSnackbarMessage("This exam has already been submitted.");
+            setSnackbarSeverity("info");
             setIsSnackbarOpen(true);
             return;
         }
@@ -189,10 +234,8 @@ const StudentExamList = () => {
             setStudentAttemptPasswordError(""); // Clear previous error
         } else {
             // No password required, store access flag and navigate directly
-            // CHANGED: Using user.id instead of user.uid
             const unlockedKey = `examUnlocked-${user.id}-${exam.id}`;
             sessionStorage.setItem(unlockedKey, 'true'); // Store access flag
-            console.log(`[StudentExamList] Set sessionStorage key: ${unlockedKey} = true`); // Debug log
             navigate(`/student-take-exam/${exam.id}`);
             setSnackbarMessage(`Navigating to Exam: ${exam.title}`);
             setSnackbarSeverity("info");
@@ -206,10 +249,8 @@ const StudentExamList = () => {
      * @param {string} correctPassword - The correct password for the exam.
      */
     const handleVerifyAndStartExam = (examId, correctPassword) => {
-        console.log("[StudentExamList] handleVerifyAndStartExam - Current user state:", user); // Debug log
         setStudentAttemptPasswordError(""); // Clear previous error
 
-        // CHANGED: Using user.id instead of user.uid
         if (!user?.id) {
             setSnackbarMessage(`Authentication required to verify password. Please log in again. (User ID: ${user?.id || 'N/A'})`);
             setSnackbarSeverity("error");
@@ -218,10 +259,8 @@ const StudentExamList = () => {
         }
 
         if (studentAttemptPassword === correctPassword) {
-            // CHANGED: Using user.id instead of user.uid
             const unlockedKey = `examUnlocked-${user.id}-${examId}`;
             sessionStorage.setItem(unlockedKey, 'true'); // Store access flag
-            console.log(`[StudentExamList] Set sessionStorage key: ${unlockedKey} = true after password verification`); // Debug log
             navigate(`/student-take-exam/${examId}`);
             setSnackbarMessage(`Starting Exam: ${exams.find(e => e.id === examId)?.title}`);
             setSnackbarSeverity("success");
@@ -253,7 +292,33 @@ const StudentExamList = () => {
     }
 
     return (
-        <Box sx={{ padding: 4, bgcolor: "#e8f5e9", minHeight: "100vh" }}>
+        <Box sx={{ padding: 4, bgcolor: "#e8f5e9", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+            {/* Top AppBar with logout functionality */}
+            <AppBar 
+                position="static" 
+                sx={{ 
+                    bgcolor: 'rgba(255,255,255,0.8)', 
+                    backdropFilter: 'blur(8px)', 
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)', 
+                    borderRadius: '12px', 
+                    mb: 4 
+                }}
+            >
+                <Toolbar sx={{ justifyContent: 'space-between' }}>
+                    <Typography variant="h6" sx={{ color: '#388e3c', fontWeight: 'bold' }}>
+                        Student Exam List
+                    </Typography>
+                    <Button
+                        color="inherit"
+                        onClick={handleLogout}
+                        startIcon={<LogoutIcon />}
+                        sx={{ color: '#d32f2f', fontWeight: 'bold' }}
+                    >
+                        Logout
+                    </Button>
+                </Toolbar>
+            </AppBar>
+
             <Box
                 sx={{
                     display: "flex",
@@ -301,16 +366,35 @@ const StudentExamList = () => {
                     }}
                     sx={{ flexGrow: 1, maxWidth: 300 }}
                 />
+
+                {/* New Filter Dropdown */}
+                <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel id="exam-status-filter-label">Status</InputLabel>
+                    <Select
+                        labelId="exam-status-filter-label"
+                        id="exam-status-filter"
+                        value={filterStatus}
+                        label="Status"
+                        onChange={(e) => {
+                            setFilterStatus(e.target.value);
+                            setCurrentPage(1); // Reset to first page when filter changes
+                        }}
+                        sx={{ borderRadius: '12px' }}
+                    >
+                        <MenuItem value="all">All Exams</MenuItem>
+                        <MenuItem value="attemptable">Attemptable</MenuItem>
+                        <MenuItem value="submitted">Submitted</MenuItem>
+                    </Select>
+                </FormControl>
             </Box>
 
-            <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+            <TableContainer component={Paper} sx={{ boxShadow: 3, borderRadius: '12px' }}>
                 <Table>
                     <TableHead sx={{ bgcolor: "#c8e6c9" }}>
                         <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Title</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Intake</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Duration (min)</TableCell>
-                            {/* Removed "Created At" column */}
                             <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
@@ -318,15 +402,17 @@ const StudentExamList = () => {
                     <TableBody>
                         {paginatedExams.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} align="center"> {/* Adjusted colspan */}
-                                    No exams found for your intake.
+                                <TableCell colSpan={4} align="center" sx={{ py: 3 }}> {/* Adjusted colspan */}
+                                    <Typography variant="body1" color="text.secondary">
+                                        No exams found for your intake or matching your criteria.
+                                    </Typography>
                                 </TableCell>
                             </TableRow>
                         ) : (
                             paginatedExams.map((exam) => (
                                 <React.Fragment key={exam.id}>
                                     <TableRow
-                                        sx={{ "&:hover": { bgcolor: "#f1f8e9" } }}
+                                        sx={{ "&:hover": { bgcolor: "#f1f8e9" }, ...(exam.isSubmitted && { bgcolor: '#e0e0e0', opacity: 0.9 }) }}
                                     >
                                         <TableCell>
                                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -340,19 +426,33 @@ const StudentExamList = () => {
                                             <Chip label={exam.intakeName} color="success" size="small" sx={{ borderRadius: '8px', fontWeight: 'bold' }} />
                                         </TableCell>
                                         <TableCell>{exam.duration || 'N/A'}</TableCell>
-                                        {/* Removed Created At Cell */}
                                         <TableCell>
-                                            <Button
-                                                size="small"
-                                                variant="contained"
-                                                color="primary"
-                                                onClick={() => handleAttemptExam(exam)} // Pass the whole exam object
-                                                startIcon={<PlayCircleOutlineIcon />}
-                                                sx={{ borderRadius: '8px', fontWeight: 'bold', bgcolor: '#388e3c', '&:hover': { bgcolor: '#2e7d32' } }}
-                                                disabled={isAuthLoading || !user || showAttemptPasswordInputForExamId === exam.id} // Disable if auth is loading, no user, or its password field is open
-                                            >
-                                                Attempt Exam
-                                            </Button>
+                                            {exam.isSubmitted ? (
+                                                <Chip
+                                                    icon={<CheckCircleOutlineIcon />}
+                                                    label="Exam Submitted"
+                                                    size="medium"
+                                                    color="success"
+                                                    sx={{ 
+                                                        fontWeight: 'bold', 
+                                                        borderRadius: '8px', 
+                                                        bgcolor: '#81c784', 
+                                                        color: 'white' 
+                                                    }}
+                                                />
+                                            ) : (
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    color="primary"
+                                                    onClick={() => handleAttemptExam(exam)} // Pass the whole exam object
+                                                    startIcon={<PlayCircleOutlineIcon />}
+                                                    sx={{ borderRadius: '8px', fontWeight: 'bold', bgcolor: '#388e3c', '&:hover': { bgcolor: '#2e7d32' } }}
+                                                    disabled={isAuthLoading || !user || showAttemptPasswordInputForExamId === exam.id} // Disable if auth is loading, no user, or its password field is open
+                                                >
+                                                    Attempt Exam
+                                                </Button>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                     {showAttemptPasswordInputForExamId === exam.id && (
