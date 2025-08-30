@@ -12,16 +12,31 @@ import {
     InputLabel,
     Select,
     MenuItem,
+    FormHelperText,
 } from "@mui/material";
 import { Delete as DeleteIcon } from "@mui/icons-material";
 
-const TrueFalseForm = ({ question, onChange, readonly = false }) => {
+// ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
+const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
     const [preview, setPreview] = React.useState(null);
     const fileInputRef = React.useRef(null);
     
+    // UPDATED: Function to handle changes and clear errors
     const handleQuestionChange = (field, value) => {
         if (readonly) return;
         onChange({ ...question, [field]: value });
+
+        // Construct the unique ID for the field
+        const fieldId = `question-${index}-${field}`;
+
+        // Clear the error for this field if it exists
+        if (fieldErrors[fieldId]) {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[fieldId];
+                return newErrors;
+            });
+        }
     };
 
     const deleteMedia = () => {
@@ -52,6 +67,10 @@ const TrueFalseForm = ({ question, onChange, readonly = false }) => {
             setPreview(question.media);
         }
     }, [question.media]);
+    
+    // Define unique IDs based on the question index
+    const questionId = `question-${index}-question-text`;
+    const answerId = `question-${index}-answer`;
 
     return (
         <Card
@@ -82,6 +101,10 @@ const TrueFalseForm = ({ question, onChange, readonly = false }) => {
                     margin="normal"
                     variant="outlined"
                     disabled={readonly}
+                    // ADDED: `id`, `error`, and `helperText` props for validation
+                    id={questionId}
+                    error={!!fieldErrors[questionId]}
+                    helperText={fieldErrors[questionId]}
                     sx={{
                         '& .MuiOutlinedInput-root': {
                             borderRadius: '12px',
@@ -144,10 +167,17 @@ const TrueFalseForm = ({ question, onChange, readonly = false }) => {
                     </Box>
                 )}
                 
-                <FormControl fullWidth sx={{ mt: 3 }}>
+                <FormControl 
+                    fullWidth 
+                    sx={{ mt: 3 }}
+                    // ADDED: `error` prop for validation
+                    error={!!fieldErrors[answerId]}
+                >
                     <InputLabel id="correct-answer-label">Correct Answer</InputLabel>
                     <Select
                         labelId="correct-answer-label"
+                        // ADDED: `id` prop for validation
+                        id={answerId}
                         value={question.answer || ""}
                         label="Correct Answer"
                         onChange={(e) => handleQuestionChange("answer", e.target.value)}
@@ -166,6 +196,8 @@ const TrueFalseForm = ({ question, onChange, readonly = false }) => {
                         <MenuItem value="True">True</MenuItem>
                         <MenuItem value="False">False</MenuItem>
                     </Select>
+                    {/* ADDED: FormHelperText to display validation error */}
+                    <FormHelperText>{fieldErrors[answerId]}</FormHelperText>
                 </FormControl>
             </CardContent>
         </Card>

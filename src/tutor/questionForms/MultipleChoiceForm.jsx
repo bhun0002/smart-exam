@@ -12,45 +12,91 @@ import {
     InputLabel,
     Typography,
     Card,
-    CardContent
+    CardContent,
+    FormHelperText
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 
-const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
+const MultipleChoiceForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
     const [preview, setPreview] = React.useState(null);
     const fileInputRef = React.useRef(null);
 
-    // Update question fields
-    const handleQuestionChange = (field, value) => {
-        if (readonly) return;
-        onChange({ ...question, [field]: value });
-    };
+    const generateUniqueId = () => Math.random().toString(36).substring(2, 9);
 
-    // Update an option
-    const handleOptionChange = (index, value) => {
+    // UPDATED: Now accepts `propertyKey` (e.g., "question") and an optional `errorIdSuffix` (e.g., "question-text")
+    // This allows the error clearing logic to use a different ID suffix if the property key and error key differ.
+    const handleQuestionChange = (propertyKey, value, errorIdSuffix = propertyKey) => {
         if (readonly) return;
-        const updatedOptions = [...question.options];
-        updatedOptions[index] = value;
-        onChange({ ...question, options: updatedOptions });
-    };
+        onChange({ ...question, [propertyKey]: value }); // Update the actual property on the question object
 
-    // Add option
-    const addOption = () => {
-        if (readonly) return;
-        onChange({ ...question, options: [...question.options, ""] });
-    };
-
-    // Delete option
-    const deleteOption = (index) => {
-        if (readonly) return;
-        const updatedOptions = question.options.filter((_, i) => i !== index);
-        onChange({ ...question, options: updatedOptions });
-        if (question.answer === question.options[index]) {
-            handleQuestionChange("answer", "");
+        // Construct the fieldId using the provided suffix for clearing the error
+        const fieldIdToClear = `question-${index}-${errorIdSuffix}`;
+        
+        if (fieldErrors[fieldIdToClear]) {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[fieldIdToClear];
+                return newErrors;
+            });
         }
     };
 
-    // Media handling
+    // This handler uses the option's array index to match the parent's error ID format
+    const handleOptionChange = (optionIndex, value) => {
+        if (readonly) return;
+        const updatedOptions = question.options.map((opt, i) =>
+            i === optionIndex ? { ...opt, text: value } : opt
+        );
+        onChange({ ...question, options: updatedOptions });
+
+        const optionId = `question-${index}-option-${optionIndex}`; // Use the index 'i' to create the ID
+        if (fieldErrors[optionId]) {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[optionId];
+                return newErrors;
+            });
+        }
+    };
+
+    const addOption = () => {
+        if (readonly) return;
+        onChange({ ...question, options: [...question.options, { id: generateUniqueId(), text: "" }] });
+        
+        const optionsId = `question-${index}-options`;
+        if (fieldErrors[optionsId]) {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[optionsId];
+                return newErrors;
+            });
+        }
+    };
+
+    const deleteOption = (id) => {
+        if (readonly) return;
+        const updatedOptions = question.options.filter(opt => opt.id !== id);
+        
+        const deletedOption = question.options.find(opt => opt.id === id);
+        if (question.answer === deletedOption.text) {
+            handleQuestionChange("answer", ""); // "answer" as property key, "answer" as default errorIdSuffix
+        }
+        
+        onChange({ ...question, options: updatedOptions });
+
+        setFieldErrors(prev => {
+            const newErrors = { ...prev };
+            // A more robust way to clear all option-related errors
+            Object.keys(newErrors).forEach(key => {
+                if (key.startsWith(`question-${index}-option-`)) {
+                    delete newErrors[key];
+                }
+            });
+            delete newErrors[`question-${index}-options`];
+            return newErrors;
+        });
+    };
+
     const handleMediaChange = (file) => {
         if (readonly) return;
         onChange({ ...question, media: file });
@@ -69,7 +115,6 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    // Set preview if question already has media
     React.useEffect(() => {
         if (!question.media) {
             setPreview(null);
@@ -81,10 +126,14 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
             reader.onloadend = () => setPreview(reader.result);
             reader.readAsDataURL(question.media);
         } else {
-            // Already a string (URL or base64 from DB)
             setPreview(question.media);
         }
     }, [question.media]);
+
+    // This is the ID that the TextField will use for its `id` prop and that TutorForm uses for errors
+    const questionId = `question-${index}-question-text`; 
+    const optionsId = `question-${index}-options`;
+    const answerId = `question-${index}-answer`;
 
     return (
         <Card
@@ -104,18 +153,21 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                     Multiple Choice
                 </Typography>
-                
-                {/* Question Text */}
+
                 <TextField
                     fullWidth
                     label="Question Text"
                     multiline
                     rows={2}
                     value={question.question || ""}
-                    onChange={(e) => handleQuestionChange("question", e.target.value)}
+                    // FIXED: Pass "question-text" as the errorIdSuffix to match parent's error key
+                    onChange={(e) => handleQuestionChange("question", e.target.value, "question-text")} 
                     margin="normal"
                     variant="outlined"
                     disabled={readonly}
+                    id={questionId}
+                    error={!!fieldErrors[questionId]}
+                    helperText={fieldErrors[questionId]}
                     sx={{
                         '& .MuiOutlinedInput-root': {
                             borderRadius: '12px',
@@ -127,7 +179,6 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
                     }}
                 />
 
-                {/* File Upload (hide completely in readonly) */}
                 {!readonly && (
                     <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
                         <TextField
@@ -142,6 +193,9 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
                                     backgroundColor: '#ffffff',
+                                },
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: '#e0e0e0',
                                 },
                             }}
                         />
@@ -161,7 +215,6 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
                     </Box>
                 )}
 
-                {/* Preview for image/video */}
                 {preview && (
                     <Box sx={{ mt: 2, textAlign: "center", border: '1px dashed #bdbdbd', p: 2, borderRadius: '12px' }}>
                         {question.media?.type?.startsWith("video") ? (
@@ -180,43 +233,53 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
                     </Box>
                 )}
 
-                {/* Options */}
                 <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle1" fontWeight="bold" color="text.secondary">Options</Typography>
-                    {question.options.map((opt, i) => (
-                        <Box key={i} sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-                            <TextField
-                                fullWidth
-                                label={`Option ${i + 1}`}
-                                value={opt}
-                                onChange={(e) => handleOptionChange(i, e.target.value)}
-                                margin="dense"
-                                variant="outlined"
-                                disabled={readonly}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: '12px',
-                                        backgroundColor: readonly ? 'rgba(0,0,0,0.04)' : '#ffffff',
-                                    },
-                                    '& .MuiInputBase-input.Mui-disabled': {
-                                        WebkitTextFillColor: '#424242 !important',
-                                    },
-                                }}
-                            />
-                            {/* Delete Option Button */}
-                            {!readonly && (
-                                <IconButton
-                                    color="error"
-                                    onClick={() => deleteOption(i)}
-                                    sx={{ ml: 1, p: 1 }}
-                                    disabled={question.options.length <= 2}
-                                >
-                                    <DeleteIcon />
-                                </IconButton>
-                            )}
-                        </Box>
-                    ))}
-                    {/* Add Option Button */}
+                    <Typography variant="subtitle1" fontWeight="bold" color="text.secondary">
+                        Options
+                    </Typography>
+                    {fieldErrors[optionsId] && (
+                        <FormHelperText error sx={{ ml: 1, mt: -1, mb: 1 }}>
+                            {fieldErrors[optionsId]}
+                        </FormHelperText>
+                    )}
+                    {question.options.map((opt, i) => {
+                        const optionId = `question-${index}-option-${i}`; 
+                        return (
+                            <Box key={opt.id} sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                                <TextField
+                                    fullWidth
+                                    label={`Option ${i + 1}`}
+                                    value={opt.text}
+                                    onChange={(e) => handleOptionChange(i, e.target.value)} 
+                                    margin="dense"
+                                    variant="outlined"
+                                    disabled={readonly}
+                                    id={optionId}
+                                    error={!!fieldErrors[optionId]}
+                                    helperText={fieldErrors[optionId]}
+                                    sx={{
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: '12px',
+                                            backgroundColor: readonly ? 'rgba(0,0,0,0.04)' : '#ffffff',
+                                        },
+                                        '& .MuiInputBase-input.Mui-disabled': {
+                                            WebkitTextFillColor: '#424242 !important',
+                                        },
+                                    }}
+                                />
+                                {!readonly && (
+                                    <IconButton
+                                        color="error"
+                                        onClick={() => deleteOption(opt.id)}
+                                        sx={{ ml: 1, p: 1 }}
+                                        disabled={question.options.length <= 2}
+                                    >
+                                        <DeleteIcon />
+                                    </IconButton>
+                                )}
+                            </Box>
+                        );
+                    })}
                     {!readonly && (
                         <Button
                             startIcon={<AddIcon />}
@@ -241,15 +304,19 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
                     )}
                 </Box>
 
-                {/* Correct Answer */}
-                <FormControl fullWidth sx={{ mt: 3 }}>
+                <FormControl
+                    fullWidth
+                    sx={{ mt: 3 }}
+                    error={!!fieldErrors[answerId]}
+                >
                     <InputLabel id="correct-answer-label" sx={{ color: 'rgba(0,0,0,0.6)' }}>Correct Answer</InputLabel>
                     <Select
                         labelId="correct-answer-label"
                         value={question.answer || ""}
                         label="Correct Answer"
-                        onChange={(e) => handleQuestionChange("answer", e.target.value)}
+                        onChange={(e) => handleQuestionChange("answer", e.target.value)} 
                         disabled={readonly}
+                        id={answerId}
                         sx={{
                             borderRadius: '12px',
                             backgroundColor: readonly ? 'rgba(0,0,0,0.04)' : '#ffffff',
@@ -262,11 +329,14 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false }) => {
                         }}
                     >
                         {question.options.map((opt, i) => (
-                            <MenuItem key={i} value={opt} sx={{ fontWeight: opt === question.answer ? 'bold' : 'normal' }}>
-                                {opt || `Option ${i + 1}`}
+                            <MenuItem key={opt.id} value={opt.text} sx={{ fontWeight: opt.text === question.answer ? 'bold' : 'normal' }}>
+                                {opt.text || `Option ${i + 1}`}
                             </MenuItem>
                         ))}
                     </Select>
+                    {fieldErrors[answerId] && (
+                        <FormHelperText>{fieldErrors[answerId]}</FormHelperText>
+                    )}
                 </FormControl>
             </CardContent>
         </Card>

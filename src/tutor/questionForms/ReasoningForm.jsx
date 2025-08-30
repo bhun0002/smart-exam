@@ -11,13 +11,27 @@ import {
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 
-const ReasoningForm = ({ question, onChange, readonly = false }) => {
+// ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
+const ReasoningForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
     const [preview, setPreview] = React.useState(null);
     const fileInputRef = React.useRef(null);
 
+    // UPDATED: Function to handle changes and clear errors
     const handleQuestionChange = (field, value) => {
         if (readonly) return;
         onChange({ ...question, [field]: value });
+
+        // Construct the unique ID for the field
+        const fieldId = `question-${index}-${field}`;
+
+        // Clear the error for this field if it exists
+        if (fieldErrors[fieldId]) {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[fieldId];
+                return newErrors;
+            });
+        }
     };
 
     const deleteMedia = () => {
@@ -50,6 +64,10 @@ const ReasoningForm = ({ question, onChange, readonly = false }) => {
             setPreview(question.media);
         }
     }, [question.media]);
+    
+    // Define unique IDs based on the question index
+    const questionId = `question-${index}-question-text`;
+    const answerId = `question-${index}-answer`;
 
     return (
         <Card
@@ -79,6 +97,10 @@ const ReasoningForm = ({ question, onChange, readonly = false }) => {
                     margin="normal"
                     variant="outlined"
                     disabled={readonly}
+                    // ADDED: `id`, `error`, and `helperText` props for validation
+                    id={questionId}
+                    error={!!fieldErrors[questionId]}
+                    helperText={fieldErrors[questionId]}
                     sx={{
                         '& .MuiOutlinedInput-root': {
                             borderRadius: '12px',
@@ -151,6 +173,12 @@ const ReasoningForm = ({ question, onChange, readonly = false }) => {
                     onChange={(e) => handleQuestionChange("answer", e.target.value)}
                     margin="normal"
                     variant="outlined"
+                    // UPDATED: `helperText` to display validation error first, then the static text
+                    helperText={fieldErrors[answerId] || "Provide a detailed explanation or a sample correct answer."}
+                    disabled={readonly}
+                    // ADDED: `id` and `error` props for validation
+                    id={answerId}
+                    error={!!fieldErrors[answerId]}
                     sx={{
                         mt: 2,
                         '& .MuiOutlinedInput-root': {
@@ -161,8 +189,6 @@ const ReasoningForm = ({ question, onChange, readonly = false }) => {
                             WebkitTextFillColor: '#424242 !important',
                         },
                     }}
-                    helperText="Provide a detailed explanation or a sample correct answer."
-                    disabled={readonly}
                 />
             </CardContent>
         </Card>

@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import NoPageFound from "./components/NoPageFound";
 
 // Tutor Components
+import TutorLogin from "./tutor/TutorLogin";
 import TutorDashboard from "./tutor/TutorDashboard";
 import TutorForm from "./tutor/TutorForm";
 import TutorExamList from "./tutor/TutorExamList";
@@ -29,6 +30,7 @@ const App = () => {
         <Route path="*" element={<NoPageFound />} />
 
         {/* Tutor Routes */}
+        <Route path="/tutor-login" element={<TutorLogin />} />
         {/* Protected Tutor Route */}
         <Route
           path="/tutor-dashboard"
