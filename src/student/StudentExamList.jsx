@@ -187,7 +187,7 @@ const StudentExamList = () => {
      */
     const filteredAndStatusExams = exams.filter(exam => {
         const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              (exam.intakeName && exam.intakeName.toLowerCase().includes(searchTerm.toLowerCase()));
+                                     (exam.intakeName && exam.intakeName.toLowerCase().includes(searchTerm.toLowerCase()));
 
         if (filterStatus === "submitted") {
             return matchesSearch && exam.isSubmitted;
@@ -292,27 +292,26 @@ const StudentExamList = () => {
     }
 
     return (
-        <Box sx={{ padding: 4, bgcolor: "#e8f5e9", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-            {/* Top AppBar with logout functionality */}
+        <Box sx={{ padding: 0, bgcolor: "#e8f5e9", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+            {/* Top AppBar with frosted glass effect */}
             <AppBar 
                 position="static" 
                 sx={{ 
-                    bgcolor: 'rgba(255,255,255,0.8)', 
-                    backdropFilter: 'blur(8px)', 
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)', 
-                    borderRadius: '12px', 
-                    mb: 4 
+                    bgcolor: 'rgba(255,255,255,0.6)', 
+                    backdropFilter: 'blur(10px)', 
+                    borderBottom: '1px solid #ccc', 
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
                 }}
             >
-                <Toolbar sx={{ justifyContent: 'space-between' }}>
-                    <Typography variant="h6" sx={{ color: '#388e3c', fontWeight: 'bold' }}>
+                <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="h6" sx={{ color: '#37474f', fontWeight: 'bold' }}>
                         Student Exam List
                     </Typography>
                     <Button
                         color="inherit"
                         onClick={handleLogout}
                         startIcon={<LogoutIcon />}
-                        sx={{ color: '#d32f2f', fontWeight: 'bold' }}
+                        sx={{ color: '#e57373', fontWeight: 'bold' }}
                     >
                         Logout
                     </Button>
@@ -321,222 +320,231 @@ const StudentExamList = () => {
 
             <Box
                 sx={{
+                    padding: 4, // Add padding back here for the main content box
+                    flexGrow: 1, // Allow this box to grow and take remaining space
                     display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 4,
-                    flexWrap: 'wrap',
-                    gap: 2,
+                    flexDirection: "column",
                 }}
             >
-                {/* Back to Student Dashboard Button */}
-                <Button
-                    variant="outlined"
-                    startIcon={<ArrowBackIcon />}
-                    onClick={() => navigate("/student-dashboard")}
-                    sx={{
-                        borderColor: '#4CAF50', color: '#4CAF50', borderRadius: '12px', fontWeight: 'bold',
-                        '&:hover': { backgroundColor: '#E8F5E9' },
-                    }}
-                >
-                    Back to Dashboard
-                </Button>
-
-                <Typography variant="h4" sx={{ color: "#388e3c", flexGrow: 1, textAlign: 'center' }}>
-                    Available Exams
-                </Typography>
-                
-                {/* Search Field */}
-                <TextField
-                    label="Search Exams"
-                    variant="outlined"
-                    size="small"
-                    value={searchTerm}
-                    onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCurrentPage(1); // reset to first page on search
-                    }}
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <SearchIcon />
-                            </InputAdornment>
-                        ),
-                        sx: { borderRadius: '12px' }
-                    }}
-                    sx={{ flexGrow: 1, maxWidth: 300 }}
-                />
-
-                {/* New Filter Dropdown */}
-                <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel id="exam-status-filter-label">Status</InputLabel>
-                    <Select
-                        labelId="exam-status-filter-label"
-                        id="exam-status-filter"
-                        value={filterStatus}
-                        label="Status"
-                        onChange={(e) => {
-                            setFilterStatus(e.target.value);
-                            setCurrentPage(1); // Reset to first page when filter changes
-                        }}
-                        sx={{ borderRadius: '12px' }}
-                    >
-                        <MenuItem value="all">All Exams</MenuItem>
-                        <MenuItem value="attemptable">Attemptable</MenuItem>
-                        <MenuItem value="submitted">Submitted</MenuItem>
-                    </Select>
-                </FormControl>
-            </Box>
-
-            <TableContainer component={Paper} sx={{ boxShadow: 3, borderRadius: '12px' }}>
-                <Table>
-                    <TableHead sx={{ bgcolor: "#c8e6c9" }}>
-                        <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Title</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Intake</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Duration (min)</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-
-                    <TableBody>
-                        {paginatedExams.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={4} align="center" sx={{ py: 3 }}> {/* Adjusted colspan */}
-                                    <Typography variant="body1" color="text.secondary">
-                                        No exams found for your intake or matching your criteria.
-                                    </Typography>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            paginatedExams.map((exam) => (
-                                <React.Fragment key={exam.id}>
-                                    <TableRow
-                                        sx={{ "&:hover": { bgcolor: "#f1f8e9" }, ...(exam.isSubmitted && { bgcolor: '#e0e0e0', opacity: 0.9 }) }}
-                                    >
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                <Avatar sx={{ bgcolor: '#A5D6A7', color: '#1B5E20', mr: 2, width: 32, height: 32, fontSize: '0.9rem' }}>
-                                                    {exam.title.charAt(0)}
-                                                </Avatar>
-                                                {exam.title}
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip label={exam.intakeName} color="success" size="small" sx={{ borderRadius: '8px', fontWeight: 'bold' }} />
-                                        </TableCell>
-                                        <TableCell>{exam.duration || 'N/A'}</TableCell>
-                                        <TableCell>
-                                            {exam.isSubmitted ? (
-                                                <Chip
-                                                    icon={<CheckCircleOutlineIcon />}
-                                                    label="Exam Submitted"
-                                                    size="medium"
-                                                    color="success"
-                                                    sx={{ 
-                                                        fontWeight: 'bold', 
-                                                        borderRadius: '8px', 
-                                                        bgcolor: '#81c784', 
-                                                        color: 'white' 
-                                                    }}
-                                                />
-                                            ) : (
-                                                <Button
-                                                    size="small"
-                                                    variant="contained"
-                                                    color="primary"
-                                                    onClick={() => handleAttemptExam(exam)} // Pass the whole exam object
-                                                    startIcon={<PlayCircleOutlineIcon />}
-                                                    sx={{ borderRadius: '8px', fontWeight: 'bold', bgcolor: '#388e3c', '&:hover': { bgcolor: '#2e7d32' } }}
-                                                    disabled={isAuthLoading || !user || showAttemptPasswordInputForExamId === exam.id} // Disable if auth is loading, no user, or its password field is open
-                                                >
-                                                    Attempt Exam
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                    {showAttemptPasswordInputForExamId === exam.id && (
-                                        <TableRow>
-                                            <TableCell colSpan={4}> {/* Adjusted colspan */}
-                                                <Box sx={{ p: 2, bgcolor: '#e0f7fa', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                                                    <Typography variant="body2" sx={{ mr: 1, color: '#37474f' }}>
-                                                        Enter exam password:
-                                                    </Typography>
-                                                    <TextField
-                                                        autoFocus
-                                                        size="small"
-                                                        label="Password"
-                                                        type="password"
-                                                        value={studentAttemptPassword}
-                                                        onChange={(e) => setStudentAttemptPassword(e.target.value)}
-                                                        error={!!studentAttemptPasswordError}
-                                                        helperText={studentAttemptPasswordError}
-                                                        sx={{ width: 200, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                                                        onKeyPress={(e) => {
-                                                            if (e.key === 'Enter' && studentAttemptPassword.trim()) {
-                                                                handleVerifyAndStartExam(exam.id, exam.examPassword);
-                                                            }
-                                                        }}
-                                                    />
-                                                    <Button
-                                                        variant="contained"
-                                                        color="success"
-                                                        onClick={() => handleVerifyAndStartExam(exam.id, exam.examPassword)}
-                                                        disabled={!studentAttemptPassword.trim()}
-                                                        sx={{ borderRadius: '8px', fontWeight: 'bold' }}
-                                                    >
-                                                        Start Exam
-                                                    </Button>
-                                                    <Button
-                                                        variant="outlined"
-                                                        color="secondary"
-                                                        onClick={handleCancelAttemptPassword}
-                                                        sx={{ borderRadius: '8px' }}
-                                                    >
-                                                        Cancel
-                                                    </Button>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </React.Fragment>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-
-            {/* Pagination controls */}
-            {!loading && paginatedExams.length > 0 && (
                 <Box
                     sx={{
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
-                        mt: 2,
+                        mb: 4,
+                        flexWrap: 'wrap',
+                        gap: 2,
                     }}
                 >
+                    {/* Back to Student Dashboard Button */}
                     <Button
                         variant="outlined"
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(prev => prev - 1)}
-                        sx={{ borderRadius: "12px", borderColor: '#4CAF50', color: '#4CAF50' }}
+                        startIcon={<ArrowBackIcon />}
+                        onClick={() => navigate("/student-dashboard")}
+                        sx={{
+                            borderColor: '#4CAF50', color: '#4CAF50', borderRadius: '12px', fontWeight: 'bold',
+                            '&:hover': { backgroundColor: '#E8F5E9' },
+                        }}
                     >
-                        Previous
+                        Back to Dashboard
                     </Button>
-                    <Typography>
-                        Page {currentPage} of {totalPages || 1}
+
+                    <Typography variant="h4" sx={{ color: "#388e3c", flexGrow: 1, textAlign: 'center' }}>
+                        Available Exams
                     </Typography>
-                    <Button
+                    
+                    {/* Search Field */}
+                    <TextField
+                        label="Search Exams"
                         variant="outlined"
-                        disabled={currentPage === totalPages || totalPages === 0}
-                        onClick={() => setCurrentPage(prev => prev + 1)}
-                        sx={{ borderRadius: "12px", borderColor: '#4CAF50', color: '#4CAF50' }}
-                    >
-                        Next
-                    </Button>
+                        size="small"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1); // reset to first page on search
+                        }}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            ),
+                            sx: { borderRadius: '12px' }
+                        }}
+                        sx={{ flexGrow: 1, maxWidth: 300 }}
+                    />
+
+                    {/* New Filter Dropdown */}
+                    <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel id="exam-status-filter-label">Status</InputLabel>
+                        <Select
+                            labelId="exam-status-filter-label"
+                            id="exam-status-filter"
+                            value={filterStatus}
+                            label="Status"
+                            onChange={(e) => {
+                                setFilterStatus(e.target.value);
+                                setCurrentPage(1); // Reset to first page when filter changes
+                            }}
+                            sx={{ borderRadius: '12px' }}
+                        >
+                            <MenuItem value="all">All Exams</MenuItem>
+                            <MenuItem value="attemptable">Attemptable</MenuItem>
+                            <MenuItem value="submitted">Submitted</MenuItem>
+                        </Select>
+                    </FormControl>
                 </Box>
-            )}
+
+                <TableContainer component={Paper} sx={{ boxShadow: 3, borderRadius: '12px' }}>
+                    <Table>
+                        <TableHead sx={{ bgcolor: "#c8e6c9" }}>
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Title</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Intake</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Duration (min)</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', color: '#1b5e20' }}>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+
+                        <TableBody>
+                            {paginatedExams.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}> {/* Adjusted colspan */}
+                                        <Typography variant="body1" color="text.secondary">
+                                            No exams found for your intake or matching your criteria.
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                paginatedExams.map((exam) => (
+                                    <React.Fragment key={exam.id}>
+                                        <TableRow
+                                            sx={{ "&:hover": { bgcolor: "#f1f8e9" }, ...(exam.isSubmitted && { bgcolor: '#e0e0e0', opacity: 0.9 }) }}
+                                        >
+                                            <TableCell>
+                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                    <Avatar sx={{ bgcolor: '#A5D6A7', color: '#1B5E20', mr: 2, width: 32, height: 32, fontSize: '0.9rem' }}>
+                                                        {exam.title.charAt(0)}
+                                                    </Avatar>
+                                                    {exam.title}
+                                                </Box>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip label={exam.intakeName} color="success" size="small" sx={{ borderRadius: '8px', fontWeight: 'bold' }} />
+                                            </TableCell>
+                                            <TableCell>{exam.duration || 'N/A'}</TableCell>
+                                            <TableCell>
+                                                {exam.isSubmitted ? (
+                                                    <Chip
+                                                        icon={<CheckCircleOutlineIcon />}
+                                                        label="Exam Submitted"
+                                                        size="medium"
+                                                        color="success"
+                                                        sx={{ 
+                                                            fontWeight: 'bold', 
+                                                            borderRadius: '8px', 
+                                                            bgcolor: '#81c784', 
+                                                            color: 'white' 
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <Button
+                                                        size="small"
+                                                        variant="contained"
+                                                        color="primary"
+                                                        onClick={() => handleAttemptExam(exam)} // Pass the whole exam object
+                                                        startIcon={<PlayCircleOutlineIcon />}
+                                                        sx={{ borderRadius: '8px', fontWeight: 'bold', bgcolor: '#388e3c', '&:hover': { bgcolor: '#2e7d32' } }}
+                                                        disabled={isAuthLoading || !user || showAttemptPasswordInputForExamId === exam.id} // Disable if auth is loading, no user, or its password field is open
+                                                    >
+                                                        Attempt Exam
+                                                    </Button>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                        {showAttemptPasswordInputForExamId === exam.id && (
+                                            <TableRow>
+                                                <TableCell colSpan={4}> {/* Adjusted colspan */}
+                                                    <Box sx={{ p: 2, bgcolor: '#e0f7fa', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                                        <Typography variant="body2" sx={{ mr: 1, color: '#37474f' }}>
+                                                            Enter exam password:
+                                                        </Typography>
+                                                        <TextField
+                                                            autoFocus
+                                                            size="small"
+                                                            label="Password"
+                                                            type="password"
+                                                            value={studentAttemptPassword}
+                                                            onChange={(e) => setStudentAttemptPassword(e.target.value)}
+                                                            error={!!studentAttemptPasswordError}
+                                                            helperText={studentAttemptPasswordError}
+                                                            sx={{ width: 200, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                                                            onKeyPress={(e) => {
+                                                                if (e.key === 'Enter' && studentAttemptPassword.trim()) {
+                                                                    handleVerifyAndStartExam(exam.id, exam.examPassword);
+                                                                }
+                                                            }}
+                                                        />
+                                                        <Button
+                                                            variant="contained"
+                                                            color="success"
+                                                            onClick={() => handleVerifyAndStartExam(exam.id, exam.examPassword)}
+                                                            disabled={!studentAttemptPassword.trim()}
+                                                            sx={{ borderRadius: '8px', fontWeight: 'bold' }}
+                                                        >
+                                                            Start Exam
+                                                        </Button>
+                                                        <Button
+                                                            variant="outlined"
+                                                            color="secondary"
+                                                            onClick={handleCancelAttemptPassword}
+                                                            sx={{ borderRadius: '8px' }}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    </Box>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </React.Fragment>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+
+                {/* Pagination controls */}
+                {!loading && paginatedExams.length > 0 && (
+                    <Box
+                        sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mt: 2,
+                        }}
+                    >
+                        <Button
+                            variant="outlined"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            sx={{ borderRadius: "12px", borderColor: '#4CAF50', color: '#4CAF50' }}
+                        >
+                            Previous
+                        </Button>
+                        <Typography>
+                            Page {currentPage} of {totalPages || 1}
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            sx={{ borderRadius: "12px", borderColor: '#4CAF50', color: '#4CAF50' }}
+                        >
+                            Next
+                        </Button>
+                    </Box>
+                )}
+            </Box> {/* End of main content Box */}
 
             {/* Snackbar for notifications */}
             <Snackbar
