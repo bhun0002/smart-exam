@@ -610,6 +610,7 @@ const StudentTakeExam = () => {
             setStudentAnswers((prevAnswers) => {
                 const newAnswers = { ...prevAnswers };
                 delete newAnswers[currentQuestionId]; // Remove the answer for the current question
+                studentAnswersRef.current = newAnswers;
                 return newAnswers;
             });
             setSnackbarMessage("Response cleared for this question.");

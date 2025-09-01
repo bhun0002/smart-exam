@@ -82,7 +82,14 @@ const TutorAdminLandingPage = () => {
             </Link>
           </Typography>
         </Box>
-
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="body1" color="#757575">
+            Are you a Student?
+            <Link component={RouterLink} to="/student-login" sx={{ ml: 1, color: '#455a64', fontWeight: 'bold' }}> {/* Consistent link color and weight */}
+              Student Login
+            </Link>
+          </Typography>
+        </Box>
       </Paper>
     </Box>
   );

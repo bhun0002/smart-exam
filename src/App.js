@@ -30,7 +30,7 @@ import ManageTutorAdmin from './tutoradmin/ManageTutorAdmin';
 import StudentLogin from "./student/StudentLogin";
 import StudentDashboard from "./student/StudentDashboard";
 import StudentExamList from "./student/StudentExamList";
-import StudentTakeExam from "./student/StudentTakeExam";
+import StudentTakeExam from "./student/StudentTakeExam/StudentTakeExam";
 
 const App = () => {
   return (
