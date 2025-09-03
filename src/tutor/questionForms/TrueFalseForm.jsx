@@ -15,12 +15,13 @@ import {
     FormHelperText,
 } from "@mui/material";
 import { Delete as DeleteIcon } from "@mui/icons-material";
+import PointsField from "./PointsField";
 
 // ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
 const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
     const [preview, setPreview] = React.useState(null);
     const fileInputRef = React.useRef(null);
-    
+
     // UPDATED: Function to handle changes and clear errors
     const handleQuestionChange = (field, value) => {
         if (readonly) return;
@@ -67,10 +68,11 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
             setPreview(question.media);
         }
     }, [question.media]);
-    
+
     // Define unique IDs based on the question index
     const questionId = `question-${index}-question-text`;
     const answerId = `question-${index}-answer`;
+    const pointsId = `question-${index}-points`;
 
     return (
         <Card
@@ -90,7 +92,7 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                     True / False
                 </Typography>
-                
+
                 <TextField
                     fullWidth
                     label="Question Text"
@@ -115,7 +117,7 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                         },
                     }}
                 />
-                
+
                 {!readonly && (
                     <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
                         <TextField
@@ -134,13 +136,13 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                             }}
                         />
                         {preview && (
-                            <IconButton 
-                                color="error" 
+                            <IconButton
+                                color="error"
                                 onClick={deleteMedia}
-                                sx={{ 
-                                    p: 1, 
-                                    backgroundColor: '#ffebee', 
-                                    '&:hover': { backgroundColor: '#ffcdd2' } 
+                                sx={{
+                                    p: 1,
+                                    backgroundColor: '#ffebee',
+                                    '&:hover': { backgroundColor: '#ffcdd2' }
                                 }}
                             >
                                 <DeleteIcon />
@@ -148,7 +150,7 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                         )}
                     </Box>
                 )}
-                
+
                 {preview && (
                     <Box sx={{ mt: 2, textAlign: "center", border: '1px dashed #bdbdbd', p: 2, borderRadius: '12px' }}>
                         {question.media?.type?.startsWith("video") ? (
@@ -166,14 +168,14 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                         )}
                     </Box>
                 )}
-                
-                <FormControl 
-                    fullWidth 
+
+                <FormControl
+                    fullWidth
                     sx={{ mt: 3 }}
                     error={!!fieldErrors[answerId]}
                     onKeyDown={(e) => {
-                        e.preventDefault(); 
-                        e.stopPropagation(); 
+                        e.preventDefault();
+                        e.stopPropagation();
                     }}
                 >
                     <InputLabel id="correct-answer-label">Correct Answer</InputLabel>
@@ -202,6 +204,22 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                     {/* ADDED: FormHelperText to display validation error */}
                     <FormHelperText>{fieldErrors[answerId]}</FormHelperText>
                 </FormControl>
+                <PointsField
+                    value={question.points}
+                    id={pointsId}
+                    onChange={(e) =>
+                        handleQuestionChange(
+                          "points",
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                    index={index}
+                    fieldErrors={fieldErrors}
+                    setFieldErrors={setFieldErrors}
+                    readonly={readonly}
+                    suggestions={[1, 2, 5, 10]} // e.g. per type
+                />
+
             </CardContent>
         </Card>
     );

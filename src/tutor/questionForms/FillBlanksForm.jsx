@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, TextField, IconButton, Card, CardContent, Typography } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon, InsertPhoto as InsertPhotoIcon } from "@mui/icons-material";
+import PointsField from "./PointsField";
 
 const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
     const [preview, setPreview] = useState(null);
@@ -14,7 +15,7 @@ const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErro
 
         // Construct the unique ID for the field
         const fieldId = `question-${index}-${field}`;
-        
+
         // Clear the error for this field if it exists
         if (fieldErrors[fieldId]) {
             setFieldErrors(prev => {
@@ -57,6 +58,7 @@ const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErro
     // Define unique IDs based on the question index
     const questionId = `question-${index}-question-text`;
     const answerId = `question-${index}-answer`;
+    const pointsId = `question-${index}-points`; 
 
     return (
         <Card
@@ -177,6 +179,21 @@ const FillBlanksForm = ({ question, onChange, readonly = false, index, fieldErro
                     }}
                     disabled={readonly}
                 />
+                <PointsField
+                                    value={question.points}
+                                    id={pointsId}
+                                    onChange={(e) =>
+                                        handleQuestionChange(
+                                          "points",
+                                          e.target.value === "" ? "" : Number(e.target.value)
+                                        )
+                                      }
+                                    index={index}
+                                    fieldErrors={fieldErrors}
+                                    setFieldErrors={setFieldErrors}
+                                    readonly={readonly}
+                                    suggestions={[1, 2, 5, 10]} // e.g. per type
+                                />
             </CardContent>
         </Card>
     );

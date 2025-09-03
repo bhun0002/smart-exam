@@ -7,9 +7,10 @@ import NoPageFound from "./components/NoPageFound";
 // Tutor Components
 import TutorLogin from "./tutor/TutorLogin";
 import TutorDashboard from "./tutor/TutorDashboard";
-import TutorExamForm from "./tutor/TutorExamForm";
+import TutorExamForm from "./tutor/examform/TutorExamForm";
 import TutorExamList from "./tutor/TutorExamList";
 import ManageStudents from './tutor/ManageStudents';
+import ViewSubmissions from "./tutor/viewsubmission/ViewSubmissions";
 
 // Admin Components
 import AdminAuthPage from "./admin/AdminAuthPage"; // New import
@@ -71,6 +72,14 @@ const App = () => {
           element={
             <ProtectedRoute requiredRole="tutor">
               <ManageStudents />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor-view-submissions"
+          element={
+            <ProtectedRoute requiredRole="tutor">
+              <ViewSubmissions />
             </ProtectedRoute>
           }
         />

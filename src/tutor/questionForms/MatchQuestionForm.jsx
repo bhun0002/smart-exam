@@ -12,9 +12,24 @@ import {
     CardContent,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import PointsField from "./PointsField";
 
 // ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
 const MatchQuestionForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
+
+    const handleQuestionChange = (field, value) => {
+        if (readonly) return;
+        onChange({ ...question, [field]: value });
+
+        const fieldId = `question-${index}-${field}`;
+        if (fieldErrors[fieldId]) {
+            setFieldErrors((prev) => {
+                const next = { ...prev };
+                delete next[fieldId];
+                return next;
+            });
+        }
+    };
 
     // UPDATED: Function to handle changes and clear errors
     const handleMatchPairChange = (pairIndex, side, value) => {
@@ -28,7 +43,7 @@ const MatchQuestionForm = ({ question, onChange, readonly = false, index, fieldE
 
         // Construct the unique ID for this specific match pair field
         const fieldId = `question-${index}-match-pair-${pairIndex}-${side}`;
-        
+
         // Clear the error for this field if it exists
         if (fieldErrors[fieldId]) {
             setFieldErrors(prev => {
@@ -85,6 +100,7 @@ const MatchQuestionForm = ({ question, onChange, readonly = false, index, fieldE
 
     // Define unique IDs for the overall match pairs container
     const matchPairsContainerId = `question-${index}-match-pairs`;
+    const pointsId = `question-${index}-points`;
 
     return (
         <Card
@@ -217,6 +233,21 @@ const MatchQuestionForm = ({ question, onChange, readonly = false, index, fieldE
                         Add Pair
                     </Button>
                 )}
+                <PointsField
+                    value={question.points}
+                    id={pointsId}
+                    onChange={(e) =>
+                        handleQuestionChange(
+                            "points",
+                            e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                    }
+                    index={index}
+                    fieldErrors={fieldErrors}
+                    setFieldErrors={setFieldErrors}
+                    readonly={readonly}
+                    suggestions={[1, 2, 5, 10]} // e.g. per type
+                />
             </CardContent>
         </Card>
     );

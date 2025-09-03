@@ -10,6 +10,7 @@ import {
     Typography,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import PointsField from "./PointsField";
 
 // ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
 const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
@@ -23,7 +24,7 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
 
         // Construct the unique ID for the field
         const fieldId = `question-${index}-${field}`;
-        
+
         // Clear the error for this field if it exists
         if (fieldErrors[fieldId]) {
             setFieldErrors(prev => {
@@ -64,10 +65,11 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
             setPreview(question.media);
         }
     }, [question.media]);
-    
+
     // Define unique IDs based on the question index
     const questionId = `question-${index}-question-text`;
     const answerId = `question-${index}-answer`;
+    const pointsId = `question-${index}-points`;
 
     return (
         <Card
@@ -111,7 +113,7 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
                         },
                     }}
                 />
-                
+
                 {!readonly && (
                     <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
                         <TextField
@@ -130,13 +132,13 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
                             }}
                         />
                         {preview && (
-                            <IconButton 
-                                color="error" 
+                            <IconButton
+                                color="error"
                                 onClick={deleteMedia}
-                                sx={{ 
-                                    p: 1, 
-                                    backgroundColor: '#ffebee', 
-                                    '&:hover': { backgroundColor: '#ffcdd2' } 
+                                sx={{
+                                    p: 1,
+                                    backgroundColor: '#ffebee',
+                                    '&:hover': { backgroundColor: '#ffcdd2' }
                                 }}
                             >
                                 <DeleteIcon />
@@ -144,7 +146,7 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
                         )}
                     </Box>
                 )}
-                
+
                 {/* Preview for image/video */}
                 {preview && (
                     <Box sx={{ mt: 2, textAlign: "center", border: '1px dashed #bdbdbd', p: 2, borderRadius: '12px' }}>
@@ -163,7 +165,7 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
                         )}
                     </Box>
                 )}
-                
+
                 <TextField
                     fullWidth
                     label="Correct Answer"
@@ -189,6 +191,22 @@ const ShortAnswerForm = ({ question, onChange, readonly = false, index, fieldErr
                         },
                     }}
                 />
+                <PointsField
+                    value={question.points}
+                    id={pointsId}
+                    onChange={(e) =>
+                        handleQuestionChange(
+                          "points",
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                    index={index}
+                    fieldErrors={fieldErrors}
+                    setFieldErrors={setFieldErrors}
+                    readonly={readonly}
+                    suggestions={[1, 2, 5, 10]} // e.g. per type
+                />
+
             </CardContent>
         </Card>
     );

@@ -1,17 +1,7 @@
 // src/tutor/ManageStudents.jsx
 import React, { useState, useEffect } from "react";
 import { db } from "../firebaseConfig";
-import {
-  collection,
-  addDoc,
-  getDocs,
-  updateDoc,
-  doc,
-  serverTimestamp,
-  query,
-  orderBy,
-  where,
-} from "firebase/firestore";
+import { collection, addDoc, getDocs, updateDoc, doc, serverTimestamp, query, orderBy, where, runTransaction } from "firebase/firestore";
 import {
   Box,
   Typography,
@@ -46,6 +36,15 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SearchIcon from "@mui/icons-material/Search";
+
+// Build "YYMM" prefix from current local date
+const getYYMM = () => {
+  const d = new Date();
+  const yy = String(d.getFullYear() % 100).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return yy + mm;
+};
+
 
 // ------------------ Student Form ------------------
 const StudentForm = ({
@@ -234,224 +233,242 @@ const StudentForm = ({
 
 // ------------------ Student List with Pagination ------------------
 const StudentList = ({
-    students,
-    onEditStudent,
-    onDeleteStudent,
-    onApproveStudent,
-  }) => {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
+  students,
+  onEditStudent,
+  onDeleteStudent,
+  onApproveStudent,
+}) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const filteredStudents = students.filter((student) => {
+    const term = searchTerm.trim().toLowerCase();
   
-    const filteredStudents = students.filter(
-      (student) =>
-        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (student.intakeName &&
-          student.intakeName.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const matchesName =
+      student.name?.toLowerCase().includes(term);
   
-    const totalPages = Math.ceil(filteredStudents.length / pageSize);
-    const paginatedStudents = filteredStudents.slice(
-      (currentPage - 1) * pageSize,
-      currentPage * pageSize
-    );
+    const matchesEmail =
+      student.email?.toLowerCase().includes(term);
   
-    const handleNext = () => {
-      if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
-    };
-    const handlePrev = () => {
-      if (currentPage > 1) setCurrentPage((prev) => prev - 1);
-    };
+    const matchesIntake =
+      student.intakeName?.toLowerCase().includes(term);
   
-    return (
-      <Paper
-        elevation={6}
-        sx={{
-          p: 3,
-          mt: 4,
-          borderRadius: "20px",
-          backgroundColor: "#fdfdfd",
-          boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+    // allow numeric search (no lowercase) for the 6-digit ID
+    const matchesStudentId =
+      student.studentId && String(student.studentId).includes(searchTerm.trim());
+  
+    return matchesName || matchesEmail || matchesIntake || matchesStudentId;
+  });
+
+  const totalPages = Math.ceil(filteredStudents.length / pageSize);
+  const paginatedStudents = filteredStudents.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  const handleNext = () => {
+    if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
+  };
+  const handlePrev = () => {
+    if (currentPage > 1) setCurrentPage((prev) => prev - 1);
+  };
+
+  return (
+    <Paper
+      elevation={6}
+      sx={{
+        p: 3,
+        mt: 4,
+        borderRadius: "20px",
+        backgroundColor: "#fdfdfd",
+        boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+      }}
+    >
+      <Typography variant="h6" fontWeight="bold" color="#1A237E" sx={{ mb: 2 }}>
+        Registered Students
+      </Typography>
+
+      <TextField
+        label="Search Students (Name, Email, Intake, ID)"
+        variant="outlined"
+        size="small"
+        fullWidth
+        value={searchTerm}
+        onChange={(e) => {
+          setSearchTerm(e.target.value);
+          setCurrentPage(1); // reset to first page on search
         }}
-      >
-        <Typography variant="h6" fontWeight="bold" color="#1A237E" sx={{ mb: 2 }}>
-          Registered Students
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon />
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 3, "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+      />
+
+      {paginatedStudents.length === 0 ? (
+        <Typography textAlign="center" color="text.secondary" sx={{ py: 3 }}>
+          No students found.
         </Typography>
-  
-        <TextField
-          label="Search Students"
-          variant="outlined"
-          size="small"
-          fullWidth
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1); // reset to first page on search
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ mb: 3, "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
-        />
-  
-        {paginatedStudents.length === 0 ? (
-          <Typography textAlign="center" color="text.secondary" sx={{ py: 3 }}>
-            No students found.
-          </Typography>
-        ) : (
-          <>
-            <TableContainer>
-              <Table>
-                <TableHead sx={{ bgcolor: "#e0f2f7" }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Intake</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {paginatedStudents.map((student) => (
-                    <TableRow
-                      key={student.id}
-                      sx={{
-                        "&:nth-of-type(odd)": { bgcolor: "#fcfcfc" },
-                        "&:hover": { bgcolor: "#f1f8e9" },
-                      }}
-                    >
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <Avatar
-                            sx={{
-                              bgcolor: student.isApproved ? "#C8E6C9" : "#FFECB3",
-                              color: student.isApproved ? "#1B5E20" : "#FF6F00",
-                              mr: 2,
-                              width: 32,
-                              height: 32,
-                              fontSize: "0.9rem",
-                            }}
-                          >
-                            {student.name.charAt(0)}
-                          </Avatar>
-                          {student.name}
-                        </Box>
-                      </TableCell>
-                      <TableCell>{student.email}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={student.intakeName || "N/A"}
-                          size="small"
+      ) : (
+        <>
+          <TableContainer>
+            <Table>
+              <TableHead sx={{ bgcolor: "#e0f2f7" }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Intake</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {paginatedStudents.map((student) => (
+                  <TableRow
+                    key={student.id}
+                    sx={{
+                      "&:nth-of-type(odd)": { bgcolor: "#fcfcfc" },
+                      "&:hover": { bgcolor: "#f1f8e9" },
+                    }}
+                  >
+                    <TableCell>
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <Avatar
                           sx={{
-                            bgcolor: "#BBDEFB",
-                            color: "#1A237E",
-                            fontWeight: "bold",
-                            borderRadius: "8px",
+                            bgcolor: student.isApproved ? "#C8E6C9" : "#FFECB3",
+                            color: student.isApproved ? "#1B5E20" : "#FF6F00",
+                            mr: 2,
+                            width: 32,
+                            height: 32,
+                            fontSize: "0.9rem",
                           }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={student.isApproved ? "Approved" : "Pending"}
-                          color={student.isApproved ? "success" : "warning"}
-                          size="small"
-                          sx={{ fontWeight: "bold", borderRadius: "8px" }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {!student.isApproved && (
-                          <Tooltip title="Approve Student">
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              startIcon={<CheckCircleOutlineIcon />}
-                              onClick={() => onApproveStudent(student.id, true)}
-                              sx={{
-                                mr: 1,
-                                borderColor: "#81C784",
-                                color: "#1B5E20",
-                                borderRadius: "8px",
-                              }}
-                            >
-                              Approve
-                            </Button>
-                          </Tooltip>
-                        )}
-                        <Tooltip title="Edit Student">
+                        >
+                          {student.name.charAt(0)}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                            {student.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            ID: {student.studentId || "—"}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{student.email}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={student.intakeName || "N/A"}
+                        size="small"
+                        sx={{
+                          bgcolor: "#BBDEFB",
+                          color: "#1A237E",
+                          fontWeight: "bold",
+                          borderRadius: "8px",
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={student.isApproved ? "Approved" : "Pending"}
+                        color={student.isApproved ? "success" : "warning"}
+                        size="small"
+                        sx={{ fontWeight: "bold", borderRadius: "8px" }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {!student.isApproved && (
+                        <Tooltip title="Approve Student">
                           <Button
                             variant="outlined"
                             size="small"
-                            startIcon={<EditIcon />}
-                            onClick={() => onEditStudent(student)}
+                            startIcon={<CheckCircleOutlineIcon />}
+                            onClick={() => onApproveStudent(student.id, true)}
                             sx={{
                               mr: 1,
-                              borderColor: "#FFB74D",
-                              color: "#E65100",
+                              borderColor: "#81C784",
+                              color: "#1B5E20",
                               borderRadius: "8px",
                             }}
                           >
-                            Edit
+                            Approve
                           </Button>
                         </Tooltip>
-                        <Tooltip title="Delete Student">
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            color="error"
-                            startIcon={<DeleteOutlineIcon />}
-                            onClick={() => onDeleteStudent(student.id)}
-                            sx={{ borderRadius: "8px" }}
-                          >
-                            Delete
-                          </Button>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-  
-            {/* Pagination Buttons */}
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mt: 2,
-              }}
+                      )}
+                      <Tooltip title="Edit Student">
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<EditIcon />}
+                          onClick={() => onEditStudent(student)}
+                          sx={{
+                            mr: 1,
+                            borderColor: "#FFB74D",
+                            color: "#E65100",
+                            borderRadius: "8px",
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="Delete Student">
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="error"
+                          startIcon={<DeleteOutlineIcon />}
+                          onClick={() => onDeleteStudent(student.id)}
+                          sx={{ borderRadius: "8px" }}
+                        >
+                          Delete
+                        </Button>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Pagination Buttons */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mt: 2,
+            }}
+          >
+            <Button
+              variant="outlined"
+              disabled={currentPage === 1}
+              onClick={handlePrev}
+              sx={{ borderRadius: "12px" }}
             >
-              <Button
-                variant="outlined"
-                disabled={currentPage === 1}
-                onClick={handlePrev}
-                sx={{ borderRadius: "12px" }}
-              >
-                Previous
-              </Button>
-              <Typography>
-                Page {currentPage} of {totalPages}
-              </Typography>
-              <Button
-                variant="outlined"
-                disabled={currentPage === totalPages}
-                onClick={handleNext}
-                sx={{ borderRadius: "12px" }}
-              >
-                Next
-              </Button>
-            </Box>
-          </>
-        )}
-      </Paper>
-    );
-  };
-  
+              Previous
+            </Button>
+            <Typography>
+              Page {currentPage} of {totalPages}
+            </Typography>
+            <Button
+              variant="outlined"
+              disabled={currentPage === totalPages}
+              onClick={handleNext}
+              sx={{ borderRadius: "12px" }}
+            >
+              Next
+            </Button>
+          </Box>
+        </>
+      )}
+    </Paper>
+  );
+};
+
 // ------------------ Manage Students Page ------------------
 const ManageStudents = () => {
   const [students, setStudents] = useState([]);
@@ -544,7 +561,23 @@ const ManageStudents = () => {
         return;
       }
 
+
+      // === Generate unique 6-digit Student ID: YYMM + 2-digit monthly sequence ===
+      const yymm = getYYMM();
+      const counterRef = doc(db, "counters", `SID-${yymm}`);
+      let mintedId = null;
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(counterRef);
+        const lastSeq = snap.exists() ? (snap.data().lastSeq || 0) : 0;
+        const nextSeq = lastSeq + 1;
+        if (nextSeq > 99) {
+          throw new Error("Monthly student ID capacity exceeded (YYMMxx up to 99).");
+        }
+        tx.set(counterRef, { lastSeq: nextSeq, updatedAt: serverTimestamp() }, { merge: true });
+        mintedId = `${yymm}${String(nextSeq).padStart(2, "0")}`;
+      });
       await addDoc(studentsCollectionRef, {
+        studentId: mintedId,
         name,
         email,
         password,

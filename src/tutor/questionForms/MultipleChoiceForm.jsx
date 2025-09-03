@@ -16,6 +16,7 @@ import {
     FormHelperText
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import PointsField from "./PointsField";
 
 const MultipleChoiceForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
     const [preview, setPreview] = React.useState(null);
@@ -134,6 +135,7 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
     const questionId = `question-${index}-question-text`;
     const optionsId = `question-${index}-options`;
     const answerId = `question-${index}-answer`;
+    const pointsId = `question-${index}-points`;
 
     return (
         <Card
@@ -311,8 +313,8 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                     sx={{ mt: 3 }}
                     error={!!fieldErrors[answerId]}
                     onKeyDown={(e) => {
-                        e.preventDefault(); 
-                        e.stopPropagation(); 
+                        e.preventDefault();
+                        e.stopPropagation();
                     }}
                 >
                     <InputLabel id="correct-answer-label" sx={{ color: 'rgba(0,0,0,0.6)' }}>Correct Answer</InputLabel>
@@ -346,6 +348,21 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                         <FormHelperText>{fieldErrors[answerId]}</FormHelperText>
                     )}
                 </FormControl>
+                <PointsField
+                    value={question.points}
+                    id={pointsId}
+                    onChange={(e) =>
+                        handleQuestionChange(
+                          "points",
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                    index={index}
+                    fieldErrors={fieldErrors}
+                    setFieldErrors={setFieldErrors}
+                    readonly={readonly}
+                    suggestions={[1, 2, 5, 10]} // e.g. per type
+                />
             </CardContent>
         </Card >
     );

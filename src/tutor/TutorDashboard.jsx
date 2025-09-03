@@ -15,18 +15,20 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import LogoutIcon from '@mui/icons-material/Logout';
-import PeopleIcon from '@mui/icons-material/People'; // Icon for managing students
+import PeopleIcon from '@mui/icons-material/People';
+import FactCheckIcon from '@mui/icons-material/FactCheck'; // NEW: icon for submissions
 import { useAuth } from '../AuthContext';
 
 const TutorDashboard = () => {
     const navigate = useNavigate();
-    const { logout } = useAuth(); // Assuming you have a logout function
+    const { logout } = useAuth();
 
     // Pastel colors for cards
     const cardStyles = [
         { backgroundColor: "#FFF5E1", hover: "#FFEBCC", iconColor: "#F39C12" }, // Add Exam - Soft Yellow
         { backgroundColor: "#E1F5FE", hover: "#B3E5FC", iconColor: "#3498DB" }, // List of Exams - Soft Blue
         { backgroundColor: "#E0FFD1", hover: "#CCFFB3", iconColor: "#4CAF50" }, // Manage Students - Soft Green
+        { backgroundColor: "#FDE2E4", hover: "#FAD2D7", iconColor: "#E57373" }, // NEW: View Submissions - Soft Rose
     ];
 
     const handleLogout = () => {
@@ -37,7 +39,7 @@ const TutorDashboard = () => {
     return (
         <Box
             sx={{
-                background: 'linear-gradient(135deg, #FFD1DC, #B2EBF2)', // Pastel gradient
+                background: 'linear-gradient(135deg, #FFD1DC, #B2EBF2)',
                 minHeight: "100vh",
                 display: "flex",
                 flexDirection: "column",
@@ -94,7 +96,7 @@ const TutorDashboard = () => {
 
                 <Grid container spacing={4} justifyContent="center" alignItems="stretch">
                     {/* Add Exam Card */}
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={12} sm={6} md={3}>
                         <Card
                             elevation={6}
                             sx={{
@@ -142,7 +144,7 @@ const TutorDashboard = () => {
                     </Grid>
 
                     {/* List of Exams Card */}
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={12} sm={6} md={3}>
                         <Card
                             elevation={6}
                             sx={{
@@ -189,8 +191,8 @@ const TutorDashboard = () => {
                         </Card>
                     </Grid>
 
-                    {/* New "Manage Students" Card */}
-                    <Grid item xs={12} sm={6} md={4}>
+                    {/* Manage Students Card */}
+                    <Grid item xs={12} sm={6} md={3}>
                         <Card
                             elevation={6}
                             sx={{
@@ -209,7 +211,7 @@ const TutorDashboard = () => {
                         >
                             <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, p: 4 }}>
                                 <IconButton sx={{ bgcolor: cardStyles[2].iconColor, color: '#fff', mb: 1 }}>
-                                    <PeopleIcon /> {/* Icon for students */}
+                                    <PeopleIcon />
                                 </IconButton>
                                 <Typography variant="h5" fontWeight="bold" color="text.primary">
                                     Manage Students
@@ -221,7 +223,7 @@ const TutorDashboard = () => {
                             <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
                                 <Button
                                     variant="contained"
-                                    onClick={() => navigate("/tutor-manage-students")} // Navigate to the new student management page
+                                    onClick={() => navigate("/tutor-manage-students")}
                                     sx={{
                                         bgcolor: cardStyles[2].iconColor,
                                         '&:hover': { bgcolor: '#4CAF50' },
@@ -236,6 +238,55 @@ const TutorDashboard = () => {
                             </Box>
                         </Card>
                     </Grid>
+
+                    {/* NEW: View Submissions Card */}
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card
+                            elevation={6}
+                            sx={{
+                                borderRadius: '16px',
+                                bgcolor: cardStyles[3].backgroundColor,
+                                transition: "0.3s",
+                                "&:hover": {
+                                    bgcolor: cardStyles[3].hover,
+                                    transform: "translateY(-8px)",
+                                    boxShadow: '0 10px 20px rgba(0,0,0,0.15)',
+                                },
+                                display: 'flex',
+                                flexDirection: 'column',
+                                height: '100%',
+                            }}
+                        >
+                            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, p: 4 }}>
+                                <IconButton sx={{ bgcolor: cardStyles[3].iconColor, color: '#fff', mb: 1 }}>
+                                    <FactCheckIcon />
+                                </IconButton>
+                                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                                    View Submissions
+                                </Typography>
+                                <Typography variant="body2" align="center" color="text.secondary">
+                                    Review students’ responses, status, and grades.
+                                </Typography>
+                            </CardContent>
+                            <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => navigate("/tutor-view-submissions")}
+                                    sx={{
+                                        bgcolor: cardStyles[3].iconColor,
+                                        '&:hover': { bgcolor: '#ef5350' },
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        borderRadius: '12px',
+                                        py: 1.5,
+                                    }}
+                                >
+                                    Open Submissions
+                                </Button>
+                            </Box>
+                        </Card>
+                    </Grid>
+
                 </Grid>
             </Box>
         </Box>

@@ -10,6 +10,7 @@ import {
     Typography,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import PointsField from "./PointsField";
 
 // ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
 const ReasoningForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
@@ -64,10 +65,11 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
             setPreview(question.media);
         }
     }, [question.media]);
-    
+
     // Define unique IDs based on the question index
     const questionId = `question-${index}-question-text`;
     const answerId = `question-${index}-answer`;
+    const pointsId = `question-${index}-points`;
 
     return (
         <Card
@@ -130,13 +132,13 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                             }}
                         />
                         {preview && (
-                            <IconButton 
-                                color="error" 
+                            <IconButton
+                                color="error"
                                 onClick={deleteMedia}
-                                sx={{ 
-                                    p: 1, 
-                                    backgroundColor: '#ffebee', 
-                                    '&:hover': { backgroundColor: '#ffcdd2' } 
+                                sx={{
+                                    p: 1,
+                                    backgroundColor: '#ffebee',
+                                    '&:hover': { backgroundColor: '#ffcdd2' }
                                 }}
                             >
                                 <DeleteIcon />
@@ -190,6 +192,22 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                         },
                     }}
                 />
+                <PointsField
+                    value={question.points}
+                    id={pointsId}
+                    onChange={(e) =>
+                        handleQuestionChange(
+                          "points",
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                    index={index}
+                    fieldErrors={fieldErrors}
+                    setFieldErrors={setFieldErrors}
+                    readonly={readonly}
+                    suggestions={[1, 2, 5, 10]} // e.g. per type
+                />
+
             </CardContent>
         </Card>
     );
