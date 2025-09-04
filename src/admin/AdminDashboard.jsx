@@ -186,54 +186,6 @@ const AdminDashboard = () => {
                             </Box>
                         </Card>
                     </Grid>
-
-                    {/* Go to Tutor Admin Panel Card (only if masterAdmin)
-                    {user?.role === 'masterAdmin' && (
-                        <Grid item xs={12} sm={6} md={4}>
-                            <Card
-                                elevation={6}
-                                sx={{
-                                    borderRadius: '16px',
-                                    bgcolor: cardStyles[2].backgroundColor,
-                                    transition: "0.3s",
-                                    "&:hover": {
-                                        bgcolor: cardStyles[2].hover,
-                                        transform: "translateY(-8px)",
-                                        boxShadow: '0 10px 20px rgba(0,0,0,0.15)',
-                                    },
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    height: '100%',
-                                }}
-                            >
-                                <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, p: 4 }}>
-                                    <SupervisorAccountIcon sx={{ fontSize: 60, color: cardStyles[2].iconColor, mb: 1 }} />
-                                    <Typography variant="h5" fontWeight="bold" color="text.primary">
-                                        Go to Tutor Panel
-                                    </Typography>
-                                    <Typography variant="body2" align="center" color="text.secondary">
-                                        Access the dashboard for managing tutor accounts.
-                                    </Typography>
-                                </CardContent>
-                                <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
-                                    <Button
-                                        variant="contained"
-                                        onClick={handleTutorPanelRedirect}
-                                        sx={{
-                                            bgcolor: cardStyles[2].iconColor,
-                                            '&:hover': { bgcolor: '#4CAF50' },
-                                            color: '#fff',
-                                            fontWeight: 'bold',
-                                            borderRadius: '12px',
-                                            py: 1.5,
-                                        }}
-                                    >
-                                        Tutor Dashboard
-                                    </Button>
-                                </Box>
-                            </Card>
-                        </Grid>
-                    )} */}
                 </Grid>
             </Box>
         </Box>
