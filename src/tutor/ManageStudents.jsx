@@ -1,737 +1,529 @@
 // src/tutor/ManageStudents.jsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { db } from "../firebaseConfig";
-import { collection, addDoc, getDocs, updateDoc, doc, serverTimestamp, query, orderBy, where, runTransaction } from "firebase/firestore";
 import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Divider,
-  Snackbar,
-  Alert as MuiAlert,
-  TextField,
-  InputAdornment,
-  CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Avatar,
-  Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Tooltip,
-  Skeleton,
+  collection, addDoc, getDocs, updateDoc, doc, serverTimestamp,
+  query, orderBy, where, runTransaction
+} from "firebase/firestore";
+import {
+  Box, Paper, Snackbar, Alert as MuiAlert, Button, Typography,
+  TextField, InputAdornment, Chip, MenuItem, Select, FormControl,
+  InputLabel, Table, TableHead, TableRow, TableCell, TableBody,
+  TableContainer, IconButton, Tooltip, Drawer, Divider, Stack, CircularProgress
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import PeopleIcon from "@mui/icons-material/People";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SearchIcon from "@mui/icons-material/Search";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
-// Build "YYMM" prefix from current local date
+// ---------- helpers ----------
 const getYYMM = () => {
   const d = new Date();
-  const yy = String(d.getFullYear() % 100).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  return yy + mm;
+  return String(d.getFullYear() % 100).padStart(2, "0") + String(d.getMonth() + 1).padStart(2, "0");
 };
+const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-
-// ------------------ Student Form ------------------
-const StudentForm = ({
-  onAddStudent,
-  onUpdateStudent,
-  editingStudent,
-  clearEditing,
-  error,
-  success,
-  intakes,
-}) => {
-  const [name, setName] = useState(editingStudent?.name || "");
-  const [email, setEmail] = useState(editingStudent?.email || "");
-  const [password, setPassword] = useState("");
-  const [selectedIntakeId, setSelectedIntakeId] = useState(
-    editingStudent?.intakeId || ""
-  );
-  const [localError, setLocalError] = useState("");
-
-  useEffect(() => {
-    if (editingStudent) {
-      setName(editingStudent.name);
-      setEmail(editingStudent.email);
-      setSelectedIntakeId(editingStudent.intakeId || "");
-      setPassword("");
-    } else {
-      setName("");
-      setEmail("");
-      setPassword("");
-      setSelectedIntakeId("");
-    }
-    setLocalError("");
-  }, [editingStudent]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLocalError("");
-
-    if (!name.trim() || !email.trim() || !selectedIntakeId) {
-      setLocalError("Name, Email, and Intake are required.");
-      return;
-    }
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setLocalError("Please enter a valid email address.");
-      return;
-    }
-    if (!editingStudent && !password.trim()) {
-      setLocalError("Password cannot be empty for new students.");
-      return;
-    }
-    if (!editingStudent && password.trim().length < 6) {
-      setLocalError("Password must be at least 6 characters long.");
-      return;
-    }
-
-    const studentData = { name, email, intakeId: selectedIntakeId };
-    if (password.trim()) studentData.password = password;
-
-    if (editingStudent) {
-      await onUpdateStudent(editingStudent.id, studentData);
-    } else {
-      await onAddStudent({ ...studentData, password: password.trim() });
-    }
-    clearEditing();
-    setName("");
-    setEmail("");
-    setPassword("");
-    setSelectedIntakeId("");
-  };
-
-  return (
-    <Paper
-      elevation={6}
+// ---------- Top action bar ----------
+const TopBar = ({ onBack, onCreate }) => (
+  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+    <Button
+      variant="outlined"
+      startIcon={<ArrowBackIcon />}
+      onClick={onBack}
       sx={{
-        p: 4,
-        mb: 5,
-        borderRadius: "20px",
-        backgroundColor: "#f9f9f9",
-        boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+        borderColor: "#4A90E2", color: "#4A90E2", borderRadius: "12px",
+        fontWeight: "bold", "&:hover": { backgroundColor: "#E3F2FD" },
       }}
     >
-      <Typography
-        variant="h6"
-        fontWeight="bold"
-        color="#1A237E"
-        sx={{ mb: 3 }}
-      >
-        {editingStudent ? "Edit Student" : "Add New Student"}
+      Back to Dashboard
+    </Button>
+    <Box sx={{ flex: 1, textAlign: "center" }}>
+      <Typography variant="h4" sx={{ fontWeight: "bold", color: "#1A237E" }}>
+        Manage Students
       </Typography>
-
-      {localError && <MuiAlert severity="error">{localError}</MuiAlert>}
-      {error && <MuiAlert severity="error">{error}</MuiAlert>}
-      {success && <MuiAlert severity="success">{success}</MuiAlert>}
-
-      <form onSubmit={handleSubmit}>
-        <TextField
-          label="Student Name *"
-          fullWidth
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          margin="normal"
-          variant="outlined"
-          sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
-        />
-        <TextField
-          label="Email *"
-          type="email"
-          fullWidth
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          margin="normal"
-          variant="outlined"
-          sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
-        />
-        <TextField
-          label={
-            editingStudent
-              ? "New Password (leave blank to keep current)"
-              : "Password *"
-          }
-          type="password"
-          fullWidth
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          margin="normal"
-          variant="outlined"
-          sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
-        />
-
-        <FormControl fullWidth sx={{ mb: 3 }}>
-          <InputLabel id="intake-select-label">Intake *</InputLabel>
-          <Select
-            labelId="intake-select-label"
-            value={selectedIntakeId}
-            onChange={(e) => setSelectedIntakeId(e.target.value)}
-            sx={{ borderRadius: "12px" }}
-          >
-            <MenuItem value="">
-              <em>Select an Intake</em>
-            </MenuItem>
-            {intakes.map((intake) => (
-              <MenuItem key={intake.id} value={intake.id}>
-                {intake.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
-          <Button
-            type="submit"
-            variant="contained"
-            startIcon={editingStudent ? <EditIcon /> : <AddCircleOutlineIcon />}
-            sx={{
-              borderRadius: "12px",
-              fontWeight: "bold",
-              backgroundColor: editingStudent ? "#FFB74D" : "#81C784",
-              color: editingStudent ? "#E65100" : "#1B5E20",
-              "&:hover": {
-                backgroundColor: editingStudent ? "#FF9800" : "#66BB6A",
-              },
-            }}
-          >
-            {editingStudent ? "Update Student" : "Add Student"}
-          </Button>
-          {editingStudent && (
-            <Button
-              variant="outlined"
-              onClick={clearEditing}
-              sx={{
-                borderColor: "#90A4AE",
-                color: "#455a64",
-                borderRadius: "12px",
-                fontWeight: "bold",
-                "&:hover": { borderColor: "#78909C", color: "#263238" },
-              }}
-            >
-              Cancel
-            </Button>
-          )}
-        </Box>
-      </form>
-    </Paper>
-  );
-};
-
-// ------------------ Student List with Pagination ------------------
-const StudentList = ({
-  students,
-  onEditStudent,
-  onDeleteStudent,
-  onApproveStudent,
-}) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-
-  const filteredStudents = students.filter((student) => {
-    const term = searchTerm.trim().toLowerCase();
-  
-    const matchesName =
-      student.name?.toLowerCase().includes(term);
-  
-    const matchesEmail =
-      student.email?.toLowerCase().includes(term);
-  
-    const matchesIntake =
-      student.intakeName?.toLowerCase().includes(term);
-  
-    // allow numeric search (no lowercase) for the 6-digit ID
-    const matchesStudentId =
-      student.studentId && String(student.studentId).includes(searchTerm.trim());
-  
-    return matchesName || matchesEmail || matchesIntake || matchesStudentId;
-  });
-
-  const totalPages = Math.ceil(filteredStudents.length / pageSize);
-  const paginatedStudents = filteredStudents.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
-  const handleNext = () => {
-    if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
-  };
-  const handlePrev = () => {
-    if (currentPage > 1) setCurrentPage((prev) => prev - 1);
-  };
-
-  return (
-    <Paper
-      elevation={6}
+    </Box>
+    <Button
+      variant="contained"
+      startIcon={<AddIcon />}
+      onClick={onCreate}
       sx={{
-        p: 3,
-        mt: 4,
-        borderRadius: "20px",
-        backgroundColor: "#fdfdfd",
-        boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+        borderRadius: "12px", fontWeight: "bold",
+        backgroundColor: "#81C784", color: "#1B5E20",
+        "&:hover": { backgroundColor: "#66BB6A" },
       }}
     >
-      <Typography variant="h6" fontWeight="bold" color="#1A237E" sx={{ mb: 2 }}>
-        Registered Students
-      </Typography>
+      Add Student
+    </Button>
+  </Box>
+);
 
+// ---------- Filters ----------
+const FiltersBar = ({ search, setSearch, intakeId, setIntakeId, status, setStatus, intakes, loading, onReset }) => (
+  <Paper
+    elevation={2}
+    sx={{
+      p: 2, mb: 2, borderRadius: "14px", bgcolor: "#fff",
+      border: "1px solid #eef2f6",
+    }}
+  >
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "1.5fr 1fr 1fr auto",
+        gap: 1.5,
+        alignItems: "center",
+      }}
+    >
       <TextField
-        label="Search Students (Name, Email, Intake, ID)"
-        variant="outlined"
-        size="small"
-        fullWidth
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          setCurrentPage(1); // reset to first page on search
-        }}
+        label="Search (name, email, intake, ID)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        disabled={loading}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
               <SearchIcon />
             </InputAdornment>
           ),
+          sx: { borderRadius: "12px" },
         }}
-        sx={{ mb: 3, "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
       />
+      <FormControl>
+        <InputLabel id="intake-filter-label">Intake</InputLabel>
+        <Select
+          labelId="intake-filter-label"
+          value={intakeId}
+          label="Intake"
+          onChange={(e) => setIntakeId(e.target.value)}
+          disabled={loading}
+          sx={{ borderRadius: "12px" }}
+        >
+          <MenuItem value="all">All</MenuItem>
+          {intakes.map((i) => (
+            <MenuItem key={i.id} value={i.id}>{i.name}</MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl>
+        <InputLabel id="status-filter-label">Status</InputLabel>
+        <Select
+          labelId="status-filter-label"
+          value={status}
+          label="Status"
+          onChange={(e) => setStatus(e.target.value)}
+          disabled={loading}
+          sx={{ borderRadius: "12px" }}
+        >
+          <MenuItem value="all">All</MenuItem>
+          <MenuItem value="approved">Approved</MenuItem>
+          <MenuItem value="pending">Pending</MenuItem>
+        </Select>
+      </FormControl>
+      <Stack direction="row" gap={1} justifyContent="flex-end">
+        <Chip
+          label={
+            status === "approved" ? "Approved" :
+            status === "pending" ? "Pending" : "All"
+          }
+          color={status === "approved" ? "success" : status === "pending" ? "warning" : "default"}
+          sx={{ borderRadius: "8px", fontWeight: "bold", alignSelf: "center" }}
+        />
+        <Button variant="outlined" onClick={onReset} disabled={loading} sx={{ borderRadius: "12px" }}>
+          Reset
+        </Button>
+      </Stack>
+    </Box>
+  </Paper>
+);
 
-      {paginatedStudents.length === 0 ? (
-        <Typography textAlign="center" color="text.secondary" sx={{ py: 3 }}>
-          No students found.
+// ---------- Drawer Form ----------
+const StudentDrawerForm = ({
+  open, onClose, intakes, onSubmit, editing,
+}) => {
+  const isEdit = !!editing;
+  const [name, setName] = useState(editing?.name || "");
+  const [email, setEmail] = useState(editing?.email || "");
+  const [password, setPassword] = useState("");
+  const [intakeId, setIntakeId] = useState(editing?.intakeId || "");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    setName(editing?.name || "");
+    setEmail(editing?.email || "");
+    setPassword("");
+    setIntakeId(editing?.intakeId || "");
+    setErr("");
+  }, [editing, open]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErr("");
+    if (!name.trim() || !email.trim() || !intakeId) return setErr("Name, Email and Intake are required.");
+    if (!validateEmail(email)) return setErr("Please enter a valid email.");
+    if (!isEdit && (!password.trim() || password.length < 6)) return setErr("Password must be at least 6 characters.");
+
+    const payload = { name: name.trim(), email: email.trim(), intakeId };
+    if (password.trim()) payload.password = password.trim();
+    await onSubmit(payload);
+  };
+
+  return (
+    <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { width: { xs: "100%", sm: 420 } } }}>
+      <Box sx={{ p: 3, display: "flex", flexDirection: "column", height: "100%" }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+          {isEdit ? "Edit Student" : "Add New Student"}
         </Typography>
-      ) : (
-        <>
-          <TableContainer>
-            <Table>
-              <TableHead sx={{ bgcolor: "#e0f2f7" }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Intake</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedStudents.map((student) => (
-                  <TableRow
-                    key={student.id}
-                    sx={{
-                      "&:nth-of-type(odd)": { bgcolor: "#fcfcfc" },
-                      "&:hover": { bgcolor: "#f1f8e9" },
-                    }}
-                  >
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <Avatar
-                          sx={{
-                            bgcolor: student.isApproved ? "#C8E6C9" : "#FFECB3",
-                            color: student.isApproved ? "#1B5E20" : "#FF6F00",
-                            mr: 2,
-                            width: 32,
-                            height: 32,
-                            fontSize: "0.9rem",
-                          }}
-                        >
-                          {student.name.charAt(0)}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                            {student.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            ID: {student.studentId || "—"}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>{student.email}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={student.intakeName || "N/A"}
-                        size="small"
-                        sx={{
-                          bgcolor: "#BBDEFB",
-                          color: "#1A237E",
-                          fontWeight: "bold",
-                          borderRadius: "8px",
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={student.isApproved ? "Approved" : "Pending"}
-                        color={student.isApproved ? "success" : "warning"}
-                        size="small"
-                        sx={{ fontWeight: "bold", borderRadius: "8px" }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {!student.isApproved && (
-                        <Tooltip title="Approve Student">
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<CheckCircleOutlineIcon />}
-                            onClick={() => onApproveStudent(student.id, true)}
-                            sx={{
-                              mr: 1,
-                              borderColor: "#81C784",
-                              color: "#1B5E20",
-                              borderRadius: "8px",
-                            }}
-                          >
-                            Approve
-                          </Button>
-                        </Tooltip>
-                      )}
-                      <Tooltip title="Edit Student">
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          startIcon={<EditIcon />}
-                          onClick={() => onEditStudent(student)}
-                          sx={{
-                            mr: 1,
-                            borderColor: "#FFB74D",
-                            color: "#E65100",
-                            borderRadius: "8px",
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </Tooltip>
-                      <Tooltip title="Delete Student">
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          color="error"
-                          startIcon={<DeleteOutlineIcon />}
-                          onClick={() => onDeleteStudent(student.id)}
-                          sx={{ borderRadius: "8px" }}
-                        >
-                          Delete
-                        </Button>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {isEdit ? "Update details and save changes." : "Create a student and assign an intake."}
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
 
-          {/* Pagination Buttons */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mt: 2,
-            }}
-          >
-            <Button
-              variant="outlined"
-              disabled={currentPage === 1}
-              onClick={handlePrev}
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2 }}>
+          {!!err && <MuiAlert severity="error">{err}</MuiAlert>}
+          <TextField
+            label="Student Name *"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+          />
+          <TextField
+            label="Email *"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+          />
+          <TextField
+            label={isEdit ? "New Password (optional)" : "Password *"}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+          />
+          <FormControl>
+            <InputLabel id="intake-dd">Intake *</InputLabel>
+            <Select
+              labelId="intake-dd"
+              label="Intake *"
+              value={intakeId}
+              onChange={(e) => setIntakeId(e.target.value)}
               sx={{ borderRadius: "12px" }}
             >
-              Previous
+              {intakes.map((i) => <MenuItem key={i.id} value={i.id}>{i.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+
+          <Stack direction="row" gap={1} justifyContent="flex-end" sx={{ mt: 1 }}>
+            <Button onClick={onClose} variant="outlined" sx={{ borderRadius: "12px" }}>
+              Cancel
             </Button>
-            <Typography>
-              Page {currentPage} of {totalPages}
-            </Typography>
-            <Button
-              variant="outlined"
-              disabled={currentPage === totalPages}
-              onClick={handleNext}
-              sx={{ borderRadius: "12px" }}
-            >
-              Next
+            <Button type="submit" variant="contained" sx={{ borderRadius: "12px", fontWeight: "bold" }}>
+              {isEdit ? "Save Changes" : "Add Student"}
             </Button>
-          </Box>
-        </>
-      )}
-    </Paper>
+          </Stack>
+        </Box>
+      </Box>
+    </Drawer>
   );
 };
 
-// ------------------ Manage Students Page ------------------
+// ---------- Students Table ----------
+const StudentsTable = ({ rows, onApprove, onEdit, onDelete, loading }) => (
+  <TableContainer component={Paper} sx={{ borderRadius: "14px", border: "1px solid #eef2f6" }}>
+    <Table stickyHeader size="medium">
+      <TableHead sx={{ bgcolor: "#f7f9fc" }}>
+        <TableRow>
+          <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
+          <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+          <TableCell sx={{ fontWeight: 700 }}>Intake</TableCell>
+          <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+          <TableCell sx={{ fontWeight: 700, width: 240 }}>Actions</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {loading ? (
+          <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6 }}><CircularProgress size={26} /></TableCell></TableRow>
+        ) : rows.length === 0 ? (
+          <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6, color: "text.secondary" }}>No students found.</TableCell></TableRow>
+        ) : rows.map((s) => (
+          <TableRow key={s.id} sx={{ "&:nth-of-type(odd)": { bgcolor: "#fafafa" } }}>
+            <TableCell>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box
+                  sx={{
+                    width: 32, height: 32, borderRadius: "10px",
+                    bgcolor: s.isApproved ? "#C8E6C9" : "#FFECB3",
+                    color: s.isApproved ? "#1B5E20" : "#FF6F00",
+                    display: "grid", placeItems: "center", fontWeight: 700,
+                  }}
+                >
+                  {(s.name || "S")[0].toUpperCase()}
+                </Box>
+                <Box>
+                  <Typography sx={{ fontWeight: 600, lineHeight: 1.1 }}>{s.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">ID: {s.studentId || "—"}</Typography>
+                </Box>
+              </Stack>
+            </TableCell>
+            <TableCell>{s.email}</TableCell>
+            <TableCell>
+              <Chip label={s.intakeName || "N/A"} size="small" sx={{ bgcolor: "#E3F2FD", color: "#0D47A1", fontWeight: 700, borderRadius: "8px" }} />
+            </TableCell>
+            <TableCell>
+              <Chip
+                label={s.isApproved ? "Approved" : "Pending"}
+                color={s.isApproved ? "success" : "warning"}
+                size="small"
+                sx={{ fontWeight: 700, borderRadius: "8px" }}
+              />
+            </TableCell>
+            <TableCell>
+              <Stack direction="row" spacing={1}>
+                {!s.isApproved && (
+                  <Tooltip title="Approve">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<CheckCircleOutlineIcon />}
+                      onClick={() => onApprove(s.id, true)}
+                      sx={{ borderRadius: "10px", borderColor: "#81C784", color: "#1B5E20" }}
+                    >
+                      Approve
+                    </Button>
+                  </Tooltip>
+                )}
+                <Tooltip title="Edit">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<EditIcon />}
+                    onClick={() => onEdit(s)}
+                    sx={{ borderRadius: "10px", borderColor: "#FFB74D", color: "#E65100" }}
+                  >
+                    Edit
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Delete">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteOutlineIcon />}
+                    onClick={() => onDelete(s.id)}
+                    sx={{ borderRadius: "10px" }}
+                  >
+                    Delete
+                  </Button>
+                </Tooltip>
+              </Stack>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </TableContainer>
+);
+
+// ---------- Page ----------
 const ManageStudents = () => {
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [intakes, setIntakes] = useState([]);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [editingStudent, setEditingStudent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
 
-  const studentsCollectionRef = collection(db, "students");
-  const intakesCollectionRef = collection(db, "intakes");
+  // filters
+  const [search, setSearch] = useState("");
+  const [intakeId, setIntakeId] = useState("all");
+  const [status, setStatus] = useState("all");
 
-  const clearMessages = () => {
-    setError("");
-    setSuccess("");
-  };
+  // drawer
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
 
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const closeSnack = (_, r) => (r === "clickaway" ? null : setSnack((s) => ({ ...s, open: false })));
 
-  const getStudents = async () => {
+  const studentsRef = collection(db, "students");
+  const intakesRef = collection(db, "intakes");
+
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const intakesData = await getDocs(
-        query(intakesCollectionRef, orderBy("name", "asc"))
-      );
-      const fetchedIntakes = intakesData.docs.map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-      }));
-      setIntakes(fetchedIntakes);
+      const intSnap = await getDocs(query(intakesRef, orderBy("name", "asc")));
+      const intakeList = intSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setIntakes(intakeList);
 
-      const q = query(
-        studentsCollectionRef,
-        where("isDeleted", "==", false),
-        orderBy("createdAt", "desc")
-      );
-      const data = await getDocs(q);
-
-      const fetchedStudents = data.docs.map((studentDoc) => {
-        const studentData = studentDoc.data();
-        const intake = fetchedIntakes.find((i) => i.id === studentData.intakeId);
-        return {
-          ...studentData,
-          id: studentDoc.id,
-          intakeName: intake ? intake.name : "Unknown Intake",
-        };
+      const sSnap = await getDocs(query(studentsRef, where("isDeleted", "==", false), orderBy("createdAt", "desc")));
+      const list = sSnap.docs.map((d) => {
+        const s = d.data();
+        const intake = intakeList.find((i) => i.id === s.intakeId);
+        return { id: d.id, ...s, intakeName: intake ? intake.name : "Unknown Intake" };
       });
-      setStudents(fetchedStudents);
-      clearMessages();
-    } catch (err) {
-      console.error(err);
-      setError("Failed to fetch students.");
+      setStudents(list);
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to load students.", severity: "error" });
     } finally {
       setLoading(false);
     }
   };
+  useEffect(() => { fetchData(); }, []);
 
-  useEffect(() => {
-    getStudents();
-  }, []);
+  const resetFilters = () => { setSearch(""); setIntakeId("all"); setStatus("all"); };
 
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(""), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
+  const filtered = useMemo(() => {
+    const t = search.trim().toLowerCase();
+    return students.filter((s) => {
+      const matchSearch =
+        s.name?.toLowerCase().includes(t) ||
+        s.email?.toLowerCase().includes(t) ||
+        s.intakeName?.toLowerCase().includes(t) ||
+        (s.studentId && String(s.studentId).includes(search.trim()));
+      const matchIntake = intakeId === "all" || s.intakeId === intakeId;
+      const matchStatus = status === "all" || (status === "approved" ? s.isApproved : !s.isApproved);
+      return matchSearch && matchIntake && matchStatus;
+    });
+  }, [students, search, intakeId, status]);
 
-  const handleAddStudent = async ({ name, email, password, intakeId }) => {
-    clearMessages();
+  // actions
+  const addStudent = async ({ name, email, password, intakeId }) => {
     if (!name || !email || !password || !intakeId) {
-      setError("All fields are required.");
+      setSnack({ open: true, msg: "All fields are required.", severity: "error" });
       return;
     }
     if (!validateEmail(email)) {
-      setError("Invalid email.");
+      setSnack({ open: true, msg: "Invalid email.", severity: "error" });
       return;
     }
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+      setSnack({ open: true, msg: "Password must be at least 6 characters.", severity: "error" });
       return;
     }
 
     try {
-      const q = query(studentsCollectionRef, where("email", "==", email));
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        setError("Email already exists.");
+      // email unique?
+      const exists = await getDocs(query(studentsRef, where("email", "==", email)));
+      if (!exists.empty) {
+        setSnack({ open: true, msg: "Email already exists.", severity: "error" });
         return;
       }
 
-
-      // === Generate unique 6-digit Student ID: YYMM + 2-digit monthly sequence ===
+      // studentId YYMM + seq
       const yymm = getYYMM();
-      const counterRef = doc(db, "counters", `SID-${yymm}`);
+      const ctrRef = doc(db, "counters", `SID-${yymm}`);
       let mintedId = null;
       await runTransaction(db, async (tx) => {
-        const snap = await tx.get(counterRef);
-        const lastSeq = snap.exists() ? (snap.data().lastSeq || 0) : 0;
-        const nextSeq = lastSeq + 1;
-        if (nextSeq > 99) {
-          throw new Error("Monthly student ID capacity exceeded (YYMMxx up to 99).");
-        }
-        tx.set(counterRef, { lastSeq: nextSeq, updatedAt: serverTimestamp() }, { merge: true });
-        mintedId = `${yymm}${String(nextSeq).padStart(2, "0")}`;
+        const snap = await tx.get(ctrRef);
+        const last = snap.exists() ? (snap.data().lastSeq || 0) : 0;
+        const next = last + 1;
+        if (next > 99) throw new Error("Monthly student ID capacity exceeded.");
+        tx.set(ctrRef, { lastSeq: next, updatedAt: serverTimestamp() }, { merge: true });
+        mintedId = `${yymm}${String(next).padStart(2, "0")}`;
       });
-      await addDoc(studentsCollectionRef, {
-        studentId: mintedId,
-        name,
-        email,
-        password,
-        intakeId,
-        isApproved: false,
-        isDeleted: false,
-        createdAt: serverTimestamp(),
+
+      await addDoc(studentsRef, {
+        studentId: mintedId, name, email, password, intakeId,
+        isApproved: false, isDeleted: false, createdAt: serverTimestamp(),
       });
-      setSuccess("Student added successfully!");
-      getStudents();
-    } catch (err) {
-      console.error(err);
-      setError("Failed to add student.");
+      setSnack({ open: true, msg: "Student added.", severity: "success" });
+      setDrawerOpen(false);
+      setEditing(null);
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to add student.", severity: "error" });
     }
   };
 
-  const handleUpdateStudent = async (id, updatedData) => {
-    clearMessages();
-    if (updatedData.name && !updatedData.name.trim()) {
-      setError("Name cannot be empty.");
+  const updateStudent = async (id, payload) => {
+    if (payload.email && !validateEmail(payload.email)) {
+      setSnack({ open: true, msg: "Invalid email.", severity: "error" });
       return;
     }
-    if (updatedData.email && !validateEmail(updatedData.email)) {
-      setError("Invalid email.");
+    if (payload.password && payload.password.length < 6) {
+      setSnack({ open: true, msg: "Password must be at least 6 characters.", severity: "error" });
       return;
     }
-    if (updatedData.password && updatedData.password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (!payload.intakeId) {
+      setSnack({ open: true, msg: "Intake cannot be empty.", severity: "error" });
       return;
     }
-    if (!updatedData.intakeId) {
-      setError("Intake cannot be empty.");
-      return;
-    }
-
     try {
-      const studentDoc = doc(db, "students", id);
-      await updateDoc(studentDoc, updatedData);
-      setSuccess("Student updated successfully!");
-      getStudents();
-      setEditingStudent(null);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to update student.");
+      await updateDoc(doc(db, "students", id), payload);
+      setSnack({ open: true, msg: "Student updated.", severity: "success" });
+      setDrawerOpen(false);
+      setEditing(null);
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to update student.", severity: "error" });
     }
   };
 
-  const handleApproveStudent = async (id, isApproved) => {
-    clearMessages();
+  const approveStudent = async (id, isApproved) => {
     try {
-      const studentDoc = doc(db, "students", id);
-      await updateDoc(studentDoc, { isApproved });
-      setSuccess(`Student ${isApproved ? "approved" : "unapproved"} successfully!`);
-      getStudents();
-    } catch (err) {
-      console.error(err);
-      setError("Failed to update approval status.");
+      await updateDoc(doc(db, "students", id), { isApproved });
+      setSnack({ open: true, msg: `Student ${isApproved ? "approved" : "unapproved"}.`, severity: "success" });
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to update status.", severity: "error" });
     }
   };
 
-  const handleDeleteStudent = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this student?")) return;
-    clearMessages();
+  const deleteStudent = async (id) => {
+    if (!window.confirm("Delete this student?")) return;
     try {
-      const studentDoc = doc(db, "students", id);
-      await updateDoc(studentDoc, { isDeleted: true, deletedAt: serverTimestamp() });
-      setSuccess("Student deleted successfully!");
-      getStudents();
-    } catch (err) {
-      console.error(err);
-      setError("Failed to delete student.");
+      await updateDoc(doc(db, "students", id), { isDeleted: true, deletedAt: serverTimestamp() });
+      setSnack({ open: true, msg: "Student deleted.", severity: "success" });
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to delete.", severity: "error" });
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        py: 5,
-        px: 2,
-        fontFamily: "Roboto, sans-serif",
-        background: "linear-gradient(135deg, #A7C7E7, #D9E9F7)",
-      }}
-    >
-      <Paper
-        elevation={12}
-        sx={{
-          maxWidth: 1000,
-          mx: "auto",
-          p: { xs: 3, md: 5 },
-          borderRadius: "24px",
-          backgroundColor: "#ffffff",
-        }}
-      >
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 4 }}>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate("/tutor-dashboard")}
-            sx={{
-              borderColor: "#4A90E2",
-              color: "#4A90E2",
-              borderRadius: "12px",
-              fontWeight: "bold",
-              "&:hover": { backgroundColor: "#E3F2FD" },
-            }}
-          >
-            Back to Dashboard
-          </Button>
-          <Typography variant="h4" fontWeight="bold" color="#1A237E">
-            Manage Students
-          </Typography>
-          <Box sx={{ width: "150px" }} />
-        </Box>
-        <Divider sx={{ mb: 4 }} />
-
-        <StudentForm
-          onAddStudent={handleAddStudent}
-          onUpdateStudent={handleUpdateStudent}
-          editingStudent={editingStudent}
-          clearEditing={() => setEditingStudent(null)}
-          error={error}
-          success={success}
-          intakes={intakes}
-        />
-
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <StudentList
-            students={students}
-            onEditStudent={setEditingStudent}
-            onDeleteStudent={handleDeleteStudent}
-            onApproveStudent={handleApproveStudent}
+    <Box sx={{ background: "linear-gradient(135deg, #FFD1DC, #B2EBF2)", minHeight: "100vh", py: { xs: 2, md: 4 } }}>
+      <Paper elevation={12} sx={{ bgcolor: "#fff", borderRadius: 0, width: "100%", px: 0, py: 0 }}>
+        <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, md: 5 }, py: { xs: 2, md: 4 } }}>
+          <TopBar
+            onBack={() => navigate("/tutor-dashboard")}
+            onCreate={() => { setEditing(null); setDrawerOpen(true); }}
           />
-        )}
+
+          <FiltersBar
+            search={search} setSearch={setSearch}
+            intakeId={intakeId} setIntakeId={setIntakeId}
+            status={status} setStatus={setStatus}
+            intakes={intakes}
+            loading={loading}
+            onReset={resetFilters}
+          />
+
+          <StudentsTable
+            rows={filtered}
+            onApprove={approveStudent}
+            onEdit={(s) => { setEditing(s); setDrawerOpen(true); }}
+            onDelete={deleteStudent}
+            loading={loading}
+          />
+        </Box>
       </Paper>
 
-      <Snackbar
-        open={!!(error || success)}
-        autoHideDuration={5000}
-        onClose={clearMessages}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <MuiAlert
-          onClose={clearMessages}
-          severity={error ? "error" : "success"}
-          elevation={6}
-          variant="filled"
-          sx={{ backgroundColor: error ? "#F44336" : "#4CAF50" }}
-        >
-          {error || success}
+      <StudentDrawerForm
+        open={drawerOpen}
+        onClose={() => { setDrawerOpen(false); setEditing(null); }}
+        intakes={intakes}
+        editing={editing}
+        onSubmit={(payload) => editing ? updateStudent(editing.id, payload) : addStudent(payload)}
+      />
+
+      <Snackbar open={snack.open} autoHideDuration={4000} onClose={closeSnack} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <MuiAlert onClose={closeSnack} severity={snack.severity} elevation={6} variant="filled">
+          {snack.msg}
         </MuiAlert>
       </Snackbar>
     </Box>

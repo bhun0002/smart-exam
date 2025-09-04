@@ -1,575 +1,460 @@
 // src/tutoradmin/ManageTutorAdmin.jsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { db } from "../firebaseConfig";
 import {
-    collection,
-    addDoc,
-    getDocs,
-    updateDoc,
-    doc,
-    serverTimestamp,
-    query,
-    orderBy,
-    where,
+  collection, addDoc, getDocs, updateDoc, doc, serverTimestamp,
+  query, orderBy, where
 } from "firebase/firestore";
 import {
-    Box,
-    Typography,
-    Button,
-    Paper,
-    Divider,
-    Snackbar,
-    Alert as MuiAlert,
-    TextField,
-    InputAdornment,
-    CircularProgress,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Avatar,
-    Chip,
+  Box, Paper, Snackbar, Alert as MuiAlert, Button, Typography,
+  TextField, InputAdornment, Chip, MenuItem, Select, FormControl,
+  InputLabel, Table, TableHead, TableRow, TableCell, TableBody,
+  TableContainer, Tooltip, Drawer, Divider, Stack, CircularProgress
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import PeopleIcon from '@mui/icons-material/People'; // Icon for managing entities
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // For Approve
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // For back button
-import SearchIcon from '@mui/icons-material/Search';
 
-// --- TutorForm Component ---
-const TutorForm = ({ onAddTutor, onUpdateTutor, editingTutor, clearEditing, error, success }) => {
-    const [name, setName] = useState(editingTutor?.name || "");
-    const [email, setEmail] = useState(editingTutor?.email || "");
-    const [password, setPassword] = useState(""); // Never pre-fill passwords for security
-    const [localError, setLocalError] = useState("");
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
-    useEffect(() => {
-        if (editingTutor) {
-            setName(editingTutor.name);
-            setEmail(editingTutor.email);
-            setPassword(""); // Clear password field when editing for security
-        } else {
-            setName("");
-            setEmail("");
-            setPassword("");
-        }
-        setLocalError(""); // Clear local error on tutor change
-    }, [editingTutor]);
+// ---------- helpers ----------
+const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLocalError(""); // Clear previous local errors
+// ---------- Top action bar (same look as Students) ----------
+const TopBar = ({ onBack, onCreate }) => (
+  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+    <Button
+      variant="outlined"
+      startIcon={<ArrowBackIcon />}
+      onClick={onBack}
+      sx={{
+        borderColor: "#4A90E2", color: "#4A90E2", borderRadius: "12px",
+        fontWeight: "bold", "&:hover": { backgroundColor: "#E3F2FD" },
+      }}
+    >
+      Back to Dashboard
+    </Button>
+    <Box sx={{ flex: 1, textAlign: "center" }}>
+      <Typography variant="h4" sx={{ fontWeight: "bold", color: "#1A237E" }}>
+        Manage Tutors
+      </Typography>
+    </Box>
+    <Button
+      variant="contained"
+      startIcon={<AddIcon />}
+      onClick={onCreate}
+      sx={{
+        borderRadius: "12px", fontWeight: "bold",
+        backgroundColor: "#81C784", color: "#1B5E20",
+        "&:hover": { backgroundColor: "#66BB6A" },
+      }}
+    >
+      Add Tutor
+    </Button>
+  </Box>
+);
 
-        if (!name.trim() || !email.trim()) {
-            setLocalError("Name and Email cannot be empty.");
-            return;
-        }
-        if (!/\S+@\S+\.\S+/.test(email)) {
-            setLocalError("Please enter a valid email address.");
-            return;
-        }
+// ---------- Filters (search + status) ----------
+const FiltersBar = ({
+  search, setSearch,
+  status, setStatus,
+  loading,
+  onReset
+}) => (
+  <Paper
+    elevation={2}
+    sx={{
+      p: 2, mb: 2, borderRadius: "14px", bgcolor: "#fff",
+      border: "1px solid #eef2f6",
+    }}
+  >
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "1.5fr 1fr auto",
+        gap: 1.5,
+        alignItems: "center",
+      }}
+    >
+      <TextField
+        label="Search (name, email)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        disabled={loading}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon />
+            </InputAdornment>
+          ),
+          sx: { borderRadius: "12px" },
+        }}
+      />
 
-        if (!editingTutor && !password.trim()) {
-            setLocalError("Password cannot be empty for new tutors.");
-            return;
-        }
-        if (!editingTutor && password.trim().length < 6) {
-            setLocalError("Password must be at least 6 characters long.");
-            return;
-        }
-
-        const tutorData = { name, email };
-        if (password.trim()) { // Only update password if it's explicitly provided
-            tutorData.password = password;
-        }
-
-        if (editingTutor) {
-            await onUpdateTutor(editingTutor.id, tutorData);
-        } else {
-            await onAddTutor({ ...tutorData, password: password.trim() }); // Pass password for new tutors
-        }
-        
-        // Clear local form state after successful submission
-        setName("");
-        setEmail("");
-        setPassword("");
-        clearEditing(); // Reset editing state in parent (which might set editingTutor to null)
-    };
-
-    return (
-        <Paper elevation={3} sx={{ p: 3, borderRadius: '16px', bgcolor: '#fdfdfd', mb: 4 }}>
-            <Typography variant="h6" fontWeight="bold" color="#455a64" sx={{ mb: 2 }}>
-                {editingTutor ? "Edit Tutor" : "Add New Tutor"}
-            </Typography>
-            <form onSubmit={handleSubmit}>
-                {localError && <MuiAlert severity="error" sx={{ mb: 2 }}>{localError}</MuiAlert>}
-                {error && <MuiAlert severity="error" sx={{ mb: 2 }}>{error}</MuiAlert>}
-                {success && <MuiAlert severity="success" sx={{ mb: 2 }}>{success}</MuiAlert>}
-                <TextField
-                    label="Tutor Name"
-                    fullWidth
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    margin="normal"
-                    variant="outlined"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-                />
-                <TextField
-                    label="Email"
-                    type="email"
-                    fullWidth
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    margin="normal"
-                    variant="outlined"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-                />
-                <TextField
-                    label={editingTutor ? "New Password (leave blank to keep current)" : "Password"}
-                    type="password"
-                    fullWidth
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    margin="normal"
-                    variant="outlined"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-                />
-                <Box sx={{ display: 'flex', gap: 2, mt: 3, justifyContent: 'flex-end' }}>
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        startIcon={editingTutor ? <EditIcon /> : <AddCircleOutlineIcon />}
-                        sx={{
-                            backgroundColor: editingTutor ? '#FFB74D' : '#81C784',
-                            color: editingTutor ? '#E65100' : '#1B5E20',
-                            '&:hover': {
-                                backgroundColor: editingTutor ? '#FF9800' : '#66BB6A',
-                            },
-                            borderRadius: '12px', fontWeight: 'bold'
-                        }}
-                    >
-                        {editingTutor ? "Update Tutor" : "Add Tutor"}
-                    </Button>
-                    {editingTutor && (
-                        <Button
-                            variant="outlined"
-                            onClick={clearEditing}
-                            sx={{
-                                borderColor: '#90A4AE', color: '#455a64', borderRadius: '12px', fontWeight: 'bold',
-                                '&:hover': { borderColor: '#78909C', color: '#263238' }
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                    )}
-                </Box>
-            </form>
-        </Paper>
-    );
-};
-
-// --- TutorList Component ---
-const TutorList = ({ tutors, onEditTutor, onDeleteTutor, onApproveTutor, error }) => {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
-
-    // Filter tutors based on search
-    const filteredTutors = tutors.filter(tutor =>
-        tutor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tutor.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-     // Pagination calculations
-     const totalPages = Math.ceil(filteredTutors.length / pageSize);
-     const paginatedTutors = filteredTutors.slice(
-         (currentPage - 1) * pageSize,
-         currentPage * pageSize
-     );
-
-     return (
-        <Paper elevation={3} sx={{ p: 3, borderRadius: '16px', bgcolor: '#fdfdfd' }}>
-            <Typography variant="h6" fontWeight="bold" color="#455a64" sx={{ mb: 2 }}>
-                Registered Tutors
-            </Typography>
-            <TextField
-                label="Search Tutors"
-                variant="outlined"
-                size="small"
-                fullWidth
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} // Reset page on search
-                InputProps={{
-                    startAdornment: (
-                        <InputAdornment position="start">
-                            <SearchIcon />
-                        </InputAdornment>
-                    ),
-                    sx: { borderRadius: '12px' }
-                }}
-                sx={{ mb: 3 }}
-            />
-            {error && <MuiAlert severity="error" sx={{ mb: 2 }}>{error}</MuiAlert>}
-            {paginatedTutors.length === 0 ? (
-                <Typography textAlign="center" color="text.secondary" sx={{ py: 3 }}>
-                    No tutors found.
-                </Typography>
-            ) : (
-                <>
-                <TableContainer>
-                    <Table>
-                        <TableHead sx={{ bgcolor: '#e0f2f7' }}>
-                            <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold', color: '#263238' }}>Name</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', color: '#263238' }}>Email</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', color: '#263238' }}>Status</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', color: '#263238' }}>Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {paginatedTutors.map((tutor) => (
-                                <TableRow key={tutor.id} sx={{ '&:nth-of-type(odd)': { bgcolor: '#fcfcfc' } }}>
-                                    <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                            <Avatar sx={{ bgcolor: '#BBDEFB', color: '#1A237E', mr: 2, width: 32, height: 32, fontSize: '0.9rem' }}>
-                                                {tutor.name.charAt(0)}
-                                            </Avatar>
-                                            {tutor.name}
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell>{tutor.email}</TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={tutor.isApproved ? "Approved" : "Pending"}
-                                            color={tutor.isApproved ? "success" : "warning"}
-                                            size="small"
-                                            sx={{ fontWeight: 'bold', borderRadius: '8px' }}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        {!tutor.isApproved && (
-                                            <Button
-                                                variant="outlined"
-                                                size="small"
-                                                startIcon={<CheckCircleOutlineIcon />}
-                                                onClick={() => onApproveTutor(tutor.id, true)}
-                                                sx={{ mr: 1, borderColor: '#81C784', color: '#1B5E20', borderRadius: '8px' }}
-                                            >
-                                                Approve
-                                            </Button>
-                                        )}
-                                        <Button
-                                            variant="outlined"
-                                            size="small"
-                                            startIcon={<EditIcon />}
-                                            onClick={() => onEditTutor(tutor)}
-                                            sx={{ mr: 1, borderColor: '#FFB74D', color: '#E65100', borderRadius: '8px' }}
-                                        >
-                                            Edit
-                                        </Button>
-                                        <Button
-                                            variant="outlined"
-                                            size="small"
-                                            color="error"
-                                            startIcon={<DeleteOutlineIcon />}
-                                            onClick={() => onDeleteTutor(tutor.id)}
-                                            sx={{ borderRadius: '8px' }}
-                                        >
-                                            Delete
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-
-                {/* Pagination buttons */}
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
-                    <Button
-                        variant="outlined"
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(prev => prev - 1)}
-                        sx={{ borderRadius: "12px" }}
-                    >
-                        Previous
-                    </Button>
-                    <Typography>
-                        Page {currentPage} of {totalPages || 1}
-                    </Typography>
-                    <Button
-                        variant="outlined"
-                        disabled={currentPage === totalPages || totalPages === 0}
-                        onClick={() => setCurrentPage(prev => prev + 1)}
-                        sx={{ borderRadius: "12px" }}
-                    >
-                        Next
-                    </Button>
-                </Box>
-                </>
-            )}
-        </Paper>
-    );
-};
-
-
-// --- ManageTutorAdmin Main Component ---
-const ManageTutorAdmin = () => {
-    const [tutors, setTutors] = useState([]);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
-    const [editingTutor, setEditingTutor] = useState(null); // Tutor being edited
-    const [loading, setLoading] = useState(true); // Added loading state
-    const navigate = useNavigate();
-
-    const tutorsCollectionRef = collection(db, "tutors");
-
-    const clearMessages = () => {
-        setError("");
-        setSuccess("");
-    };
-
-    const validateEmail = (email) => {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    };
-
-    // Fetch tutors function
-    const getTutors = async () => {
-        setLoading(true); // Start loading
-        try {
-            const q = query(
-                tutorsCollectionRef,
-                where("isDeleted", "==", false), // Fetch only non-deleted tutors (consistent with students)
-                orderBy("createdAt", "desc")
-            );
-            const data = await getDocs(q);
-            setTutors(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
-            clearMessages(); // Clear messages after successful fetch
-        } catch (err) {
-            console.error("Error fetching tutors:", err);
-            setError("Failed to fetch tutors. Check console for details.");
-        } finally {
-            setLoading(false); // Stop loading
-        }
-    };
-
-    // Effect to fetch tutors on mount
-    useEffect(() => {
-        getTutors();
-    }, []);
-
-    // Effect to clear success messages after a delay
-    useEffect(() => {
-        if (success) {
-            const timer = setTimeout(() => {
-                setSuccess("");
-            }, 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [success]);
-
-    const handleAddTutor = async ({ name, email, password }) => {
-        clearMessages();
-        if (!name.trim() || !email.trim() || !password.trim()) {
-            setError("Please fill in all fields.");
-            return;
-        }
-        if (!validateEmail(email)) {
-            setError("Please enter a valid email address.");
-            return;
-        }
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters long.");
-            return;
-        }
-
-        try {
-            const q = query(tutorsCollectionRef, where("email", "==", email));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                setError("A tutor with this email already exists.");
-                return;
-            }
-            await addDoc(tutorsCollectionRef, {
-                name,
-                email,
-                password, // NOTE: Insecure to store plaintext passwords. Hash them!
-                isApproved: false, // New tutors are pending by default
-                isDeleted: false,
-                createdAt: serverTimestamp(),
-            });
-            setSuccess("Tutor added successfully! They need to be approved.");
-            getTutors(); // Refresh list
-        } catch (err) {
-            console.error("Error adding tutor:", err);
-            setError("Failed to add tutor. " + err.message);
-        }
-    };
-
-    const handleUpdateTutor = async (id, updatedData) => {
-        clearMessages();
-        if (updatedData.name && !updatedData.name.trim()) {
-            setError("Name cannot be empty.");
-            return;
-        }
-        if (
-            updatedData.email &&
-            (!updatedData.email.trim() || !validateEmail(updatedData.email))
-        ) {
-            setError("Please enter a valid email address.");
-            return;
-        }
-        if (updatedData.password && updatedData.password.length < 6) {
-            setError("Password must be at least 6 characters long.");
-            return;
-        }
-        try {
-            // Check if email is being updated to an already existing email (excluding current tutor)
-            if (updatedData.email) {
-                const q = query(
-                    tutorsCollectionRef,
-                    where("email", "==", updatedData.email),
-                    where("__name__", "!=", id) // Exclude the current tutor's document
-                );
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    setError("Another tutor with this email already exists.");
-                    return;
-                }
-            }
-            const tutorDoc = doc(db, "tutors", id);
-            await updateDoc(tutorDoc, updatedData);
-            setSuccess("Tutor updated successfully!");
-            getTutors(); // Refresh list
-            setEditingTutor(null); // Exit editing mode
-        } catch (err) {
-            console.error("Error updating tutor:", err);
-            setError("Failed to update tutor. " + err.message);
-        }
-    };
-
-    const handleApproveTutor = async (id, isApproved) => {
-        clearMessages();
-        try {
-            const tutorDoc = doc(db, "tutors", id);
-            await updateDoc(tutorDoc, { isApproved: isApproved });
-            setSuccess(`Tutor ${isApproved ? 'approved' : 'unapproved'} successfully!`);
-            getTutors(); // Refresh list
-        } catch (err) {
-            console.error("Error approving tutor:", err);
-            setError("Failed to change tutor approval status. " + err.message);
-        }
-    };
-
-    const handleDeleteTutor = async (id) => {
-        if (window.confirm("Are you sure you want to delete this tutor?")) {
-            clearMessages();
-            try {
-                const tutorDoc = doc(db, "tutors", id);
-                await updateDoc(tutorDoc, {
-                    isDeleted: true,
-                    deletedAt: serverTimestamp(),
-                });
-                setSuccess("Tutor deleted successfully!");
-                getTutors(); // Refresh list
-            } catch (err) {
-                console.error("Error deleting tutor:", err);
-                setError("Failed to delete tutor. " + err.message);
-            }
-        }
-    };
-
-    return (
-        <Box
-            sx={{
-                background: 'linear-gradient(135deg, #FFD1DC, #B2EBF2)', // Pastel gradient
-                minHeight: '100vh',
-                padding: '32px 0',
-                fontFamily: 'Roboto, sans-serif',
-            }}
+      <FormControl>
+        <InputLabel id="status-filter-label">Status</InputLabel>
+        <Select
+          labelId="status-filter-label"
+          value={status}
+          label="Status"
+          onChange={(e) => setStatus(e.target.value)}
+          disabled={loading}
+          sx={{ borderRadius: "12px" }}
         >
-            <Paper
-                elevation={12}
-                sx={{
-                    padding: { xs: 3, md: 5 },
-                    borderRadius: '24px',
-                    backgroundColor: '#ffffff',
-                    maxWidth: { xs: '95%', md: 1000 }, // Adjusted max-width for consistency
-                    mx: 'auto',
-                    boxShadow: '0px 15px 40px rgba(0,0,0,0.1)',
-                }}
-            >
-                {/* Header with Back Button (if navigating from higher admin) and Title */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-                     <Button
-                        variant="outlined"
-                        startIcon={<ArrowBackIcon />}
-                        onClick={() => navigate("/tutor-admin-dashboard")} // Navigate back to the new TutorAdminDashboard
-                        sx={{
-                            borderColor: '#673ab7', color: '#673ab7', borderRadius: '12px', fontWeight: 'bold',
-                            '&:hover': { backgroundColor: '#EDE7F6' }
-                        }}
-                    >
-                        Back to Dashboard
-                    </Button>
-                    <Typography variant="h4" fontWeight="bold" color="#37474f" sx={{ flexGrow: 1, textAlign: 'center' }}>
-                        Manage Tutors
-                    </Typography>
-                    <Box sx={{ width: '150px' }} /> {/* Placeholder to balance title */}
-                </Box>
-                <Divider sx={{ mb: 4 }} />
+          <MenuItem value="all">All</MenuItem>
+          <MenuItem value="approved">Approved</MenuItem>
+          <MenuItem value="pending">Pending</MenuItem>
+        </Select>
+      </FormControl>
 
-                {/* Add/Edit Tutor Form */}
-                <TutorForm
-                    onAddTutor={handleAddTutor}
-                    onUpdateTutor={handleUpdateTutor}
-                    editingTutor={editingTutor}
-                    clearEditing={() => setEditingTutor(null)}
-                    error={error}
-                    success={success}
-                />
+      <Stack direction="row" gap={1} justifyContent="flex-end">
+        <Chip
+          label={status === "approved" ? "Approved" : status === "pending" ? "Pending" : "All"}
+          color={status === "approved" ? "success" : status === "pending" ? "warning" : "default"}
+          sx={{ borderRadius: "8px", fontWeight: "bold", alignSelf: "center" }}
+        />
+        <Button variant="outlined" onClick={onReset} disabled={loading} sx={{ borderRadius: "12px" }}>
+          Reset
+        </Button>
+      </Stack>
+    </Box>
+  </Paper>
+);
 
-                {/* Tutor List */}
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                        <CircularProgress />
-                    </Box>
-                ) : error ? (
-                    <MuiAlert severity="error" sx={{ mb: 2 }}>{error}</MuiAlert>
-                ) : (
-                    <TutorList
-                        tutors={tutors}
-                        onEditTutor={setEditingTutor}
-                        onDeleteTutor={handleDeleteTutor}
-                        onApproveTutor={handleApproveTutor}
-                    />
-                )}
-            </Paper>
+// ---------- Right Drawer Form (mirrors StudentDrawerForm UX) ----------
+const TutorDrawerForm = ({ open, onClose, onSubmit, editing }) => {
+  const isEdit = !!editing;
+  const [name, setName] = useState(editing?.name || "");
+  const [email, setEmail] = useState(editing?.email || "");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState("");
 
-            {/* Snackbar for general notifications */}
-            <Snackbar
-                open={!!(error || success)}
-                autoHideDuration={5000}
-                onClose={clearMessages}
-                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-            >
-                <MuiAlert
-                    onClose={clearMessages}
-                    severity={error ? "error" : "success"}
-                    elevation={6}
-                    variant="filled"
-                    sx={{ backgroundColor: error ? "#F44336" : "#4CAF50" }}
-                >
-                    {error || success}
-                </MuiAlert>
-            </Snackbar>
+  useEffect(() => {
+    setName(editing?.name || "");
+    setEmail(editing?.email || "");
+    setPassword("");
+    setErr("");
+  }, [editing, open]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErr("");
+
+    if (!name.trim() || !email.trim()) return setErr("Name and Email are required.");
+    if (!validateEmail(email)) return setErr("Please enter a valid email address.");
+    if (!isEdit && (!password.trim() || password.trim().length < 6)) {
+      return setErr("Password must be at least 6 characters for a new tutor.");
+    }
+    const payload = { name: name.trim(), email: email.trim() };
+    if (password.trim()) payload.password = password.trim(); // optional on edit
+    await onSubmit(payload);
+  };
+
+  return (
+    <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { width: { xs: "100%", sm: 420 } } }}>
+      <Box sx={{ p: 3, display: "flex", flexDirection: "column", height: "100%" }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+          {isEdit ? "Edit Tutor" : "Add New Tutor"}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {isEdit ? "Update tutor details and save changes." : "Create a tutor account for your team."}
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2 }}>
+          {!!err && <MuiAlert severity="error">{err}</MuiAlert>}
+          <TextField
+            label="Tutor Name *"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+          />
+          <TextField
+            label="Email *"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+          />
+          <TextField
+            label={isEdit ? "New Password (optional)" : "Password *"}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+          />
+
+          <Stack direction="row" gap={1} justifyContent="flex-end" sx={{ mt: 1 }}>
+            <Button onClick={onClose} variant="outlined" sx={{ borderRadius: "12px" }}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" sx={{ borderRadius: "12px", fontWeight: "bold" }}>
+              {isEdit ? "Save Changes" : "Add Tutor"}
+            </Button>
+          </Stack>
         </Box>
-    );
+      </Box>
+    </Drawer>
+  );
+};
+
+// ---------- Tutors Table (same styling as StudentsTable) ----------
+const TutorsTable = ({ rows, onApprove, onEdit, onDelete, loading }) => (
+  <TableContainer component={Paper} sx={{ borderRadius: "14px", border: "1px solid #eef2f6" }}>
+    <Table stickyHeader size="medium">
+      <TableHead sx={{ bgcolor: "#f7f9fc" }}>
+        <TableRow>
+          <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
+          <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+          <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+          <TableCell sx={{ fontWeight: 700, width: 240 }}>Actions</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {loading ? (
+          <TableRow><TableCell colSpan={4} align="center" sx={{ py: 6 }}><CircularProgress size={26} /></TableCell></TableRow>
+        ) : rows.length === 0 ? (
+          <TableRow><TableCell colSpan={4} align="center" sx={{ py: 6, color: "text.secondary" }}>No tutors found.</TableCell></TableRow>
+        ) : rows.map((t) => (
+          <TableRow key={t.id} sx={{ "&:nth-of-type(odd)": { bgcolor: "#fafafa" } }}>
+            <TableCell>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box
+                  sx={{
+                    width: 32, height: 32, borderRadius: "10px",
+                    bgcolor: t.isApproved ? "#C8E6C9" : "#FFECB3",
+                    color: t.isApproved ? "#1B5E20" : "#FF6F00",
+                    display: "grid", placeItems: "center", fontWeight: 700,
+                  }}
+                >
+                  {(t.name || "T")[0].toUpperCase()}
+                </Box>
+                <Typography sx={{ fontWeight: 600, lineHeight: 1.1 }}>{t.name}</Typography>
+              </Stack>
+            </TableCell>
+            <TableCell>{t.email}</TableCell>
+            <TableCell>
+              <Chip
+                label={t.isApproved ? "Approved" : "Pending"}
+                color={t.isApproved ? "success" : "warning"}
+                size="small"
+                sx={{ fontWeight: 700, borderRadius: "8px" }}
+              />
+            </TableCell>
+            <TableCell>
+              <Stack direction="row" spacing={1}>
+                {!t.isApproved && (
+                  <Tooltip title="Approve">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<CheckCircleOutlineIcon />}
+                      onClick={() => onApprove(t.id, true)}
+                      sx={{ borderRadius: "10px", borderColor: "#81C784", color: "#1B5E20" }}
+                    >
+                      Approve
+                    </Button>
+                  </Tooltip>
+                )}
+                <Tooltip title="Edit">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<EditIcon />}
+                    onClick={() => onEdit(t)}
+                    sx={{ borderRadius: "10px", borderColor: "#FFB74D", color: "#E65100" }}
+                  >
+                    Edit
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Delete">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteOutlineIcon />}
+                    onClick={() => onDelete(t.id)}
+                    sx={{ borderRadius: "10px" }}
+                  >
+                    Delete
+                  </Button>
+                </Tooltip>
+              </Stack>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </TableContainer>
+);
+
+// ---------- Page ----------
+const ManageTutorAdmin = () => {
+  const navigate = useNavigate();
+  const [tutors, setTutors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+
+  // filters
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+
+  // drawer
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+
+  const closeSnack = (_, r) => (r === "clickaway" ? null : setSnack((s) => ({ ...s, open: false })));
+
+  const tutorsRef = collection(db, "tutors");
+
+  const fetchTutors = async () => {
+    setLoading(true);
+    try {
+      const snap = await getDocs(query(tutorsRef, where("isDeleted", "==", false), orderBy("createdAt", "desc")));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setTutors(list);
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to load tutors.", severity: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { fetchTutors(); }, []);
+
+  const resetFilters = () => { setSearch(""); setStatus("all"); };
+
+  const filtered = useMemo(() => {
+    const t = search.trim().toLowerCase();
+    return tutors.filter((u) => {
+      const matchSearch = u.name?.toLowerCase().includes(t) || u.email?.toLowerCase().includes(t);
+      const matchStatus = status === "all" || (status === "approved" ? u.isApproved : !u.isApproved);
+      return matchSearch && matchStatus;
+    });
+  }, [tutors, search, status]);
+
+  // actions
+  const addTutor = async ({ name, email, password }) => {
+    if (!name || !email || !password) {
+      setSnack({ open: true, msg: "All fields are required.", severity: "error" });
+      return;
+    }
+    if (!validateEmail(email)) {
+      setSnack({ open: true, msg: "Invalid email.", severity: "error" });
+      return;
+    }
+    if (password.length < 6) {
+      setSnack({ open: true, msg: "Password must be at least 6 characters.", severity: "error" });
+      return;
+    }
+
+    try {
+      const exists = await getDocs(query(tutorsRef, where("email", "==", email)));
+      if (!exists.empty) {
+        setSnack({ open: true, msg: "Email already exists.", severity: "error" });
+        return;
+      }
+
+      await addDoc(tutorsRef, {
+        name, email, password,
+        isApproved: false, isDeleted: false, createdAt: serverTimestamp(),
+      });
+      setSnack({ open: true, msg: "Tutor added.", severity: "success" });
+      setDrawerOpen(false);
+      setEditing(null);
+      fetchTutors();
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to add tutor.", severity: "error" });
+    }
+  };
+
+  const updateTutor = async (id, payload) => {
+    if (payload.email && !validateEmail(payload.email)) {
+      setSnack({ open: true, msg: "Invalid email.", severity: "error" });
+      return;
+    }
+    if (payload.password && payload.password.length < 6) {
+      setSnack({ open: true, msg: "Password must be at least 6 characters.", severity: "error" });
+      return;
+    }
+    try {
+      await updateDoc(doc(db, "tutors", id), payload);
+      setSnack({ open: true, msg: "Tutor updated.", severity: "success" });
+      setDrawerOpen(false);
+      setEditing(null);
+      fetchTutors();
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to update tutor.", severity: "error" });
+    }
+  };
+
+  const approveTutor = async (id, isApproved) => {
+    try {
+      await updateDoc(doc(db, "tutors", id), { isApproved });
+      setSnack({ open: true, msg: `Tutor ${isApproved ? "approved" : "unapproved"}.`, severity: "success" });
+      fetchTutors();
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to update status.", severity: "error" });
+    }
+  };
+
+  const deleteTutor = async (id) => {
+    if (!window.confirm("Delete this tutor?")) return;
+    try {
+      await updateDoc(doc(db, "tutors", id), { isDeleted: true, deletedAt: serverTimestamp() });
+      setSnack({ open: true, msg: "Tutor deleted.", severity: "success" });
+      fetchTutors();
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to delete.", severity: "error" });
+    }
+  };
+
+  return (
+    <Box sx={{ background: "linear-gradient(135deg, #FFD1DC, #B2EBF2)", minHeight: "100vh", py: { xs: 2, md: 4 } }}>
+      <Paper elevation={12} sx={{ bgcolor: "#fff", borderRadius: 0, width: "100%", px: 0, py: 0 }}>
+        <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, md: 5 }, py: { xs: 2, md: 4 } }}>
+          <TopBar
+            onBack={() => navigate("/tutor-admin-dashboard")}
+            onCreate={() => { setEditing(null); setDrawerOpen(true); }}
+          />
+
+          <FiltersBar
+            search={search} setSearch={setSearch}
+            status={status} setStatus={setStatus}
+            loading={loading}
+            onReset={resetFilters}
+          />
+
+          <TutorsTable
+            rows={filtered}
+            onApprove={approveTutor}
+            onEdit={(t) => { setEditing(t); setDrawerOpen(true); }}
+            onDelete={deleteTutor}
+            loading={loading}
+          />
+        </Box>
+      </Paper>
+
+      <TutorDrawerForm
+        open={drawerOpen}
+        onClose={() => { setDrawerOpen(false); setEditing(null); }}
+        editing={editing}
+        onSubmit={(payload) => editing ? updateTutor(editing.id, payload) : addTutor(payload)}
+      />
+
+      <Snackbar open={snack.open} autoHideDuration={4000} onClose={closeSnack} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <MuiAlert onClose={closeSnack} severity={snack.severity} elevation={6} variant="filled">
+          {snack.msg}
+        </MuiAlert>
+      </Snackbar>
+    </Box>
+  );
 };
 
 export default ManageTutorAdmin;

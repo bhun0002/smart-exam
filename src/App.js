@@ -8,12 +8,11 @@ import NoPageFound from "./components/NoPageFound";
 import TutorLogin from "./tutor/TutorLogin";
 import TutorDashboard from "./tutor/TutorDashboard";
 import TutorExamForm from "./tutor/examform/TutorExamForm";
-import TutorExamList from "./tutor/TutorExamList";
+import TutorExamList from "./tutor/examlist/TutorExamList";
 import ManageStudents from './tutor/ManageStudents';
 import ViewSubmissions from "./tutor/viewsubmission/ViewSubmissions";
 
 // Admin Components
-import AdminAuthPage from "./admin/AdminAuthPage"; // New import
 import AdminForm from "./admin/AdminForm"; // To be used for a registration route
 import AdminDashboard from "./admin/AdminDashboard";
 import ManageAdmins from './admin/ManageAdmins';

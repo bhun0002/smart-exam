@@ -187,7 +187,7 @@ const AdminDashboard = () => {
                         </Card>
                     </Grid>
 
-                    {/* Go to Tutor Admin Panel Card (only if masterAdmin) */}
+                    {/* Go to Tutor Admin Panel Card (only if masterAdmin)
                     {user?.role === 'masterAdmin' && (
                         <Grid item xs={12} sm={6} md={4}>
                             <Card
@@ -233,7 +233,7 @@ const AdminDashboard = () => {
                                 </Box>
                             </Card>
                         </Grid>
-                    )}
+                    )} */}
                 </Grid>
             </Box>
         </Box>

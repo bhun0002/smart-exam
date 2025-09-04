@@ -80,8 +80,8 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                 if (newQ.type === 'multiple-choice') {
                     // Ensure options also have unique IDs
                     if (Array.isArray(newQ.options) && newQ.options.length > 0) {
-                        newQ.options = newQ.options.map(opt => 
-                            (typeof opt === 'string') 
+                        newQ.options = newQ.options.map(opt =>
+                            (typeof opt === 'string')
                                 ? { id: generateUniqueId(), text: opt } // Convert old string options to objects
                                 : { ...opt, id: opt.id || generateUniqueId() } // Ensure object options have IDs
                         );
@@ -403,7 +403,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                 });
                 setSnackbarMessage("Exam saved successfully!");
             }
-            
+
             setIsSnackbarOpen(true);
 
             // Call onSaveSuccess if provided (for parent component to close modal and refresh list)
@@ -411,7 +411,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                 // Delay calling onSaveSuccess to allow Snackbar to be visible for a moment
                 setTimeout(() => {
                     onSaveSuccess();
-                }, 2000); 
+                }, 2000);
             } else {
                 // Only reload if it's a standalone form and not handled by a parent (e.g., /create-exam page)
                 setTimeout(() => {
@@ -498,7 +498,16 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                 py: { xs: 2, md: 4 }
             }}
         >
-            <Paper elevation={12} sx={{ padding: { xs: 3, md: 5 }, borderRadius: '24px', backgroundColor: '#ffffff' }}>
+            <Paper
+                elevation={12}
+                sx={{
+                    maxWidth: 1000,
+                    mx: "auto",
+                    p: { xs: 3, md: 5 },
+                    borderRadius: "24px",
+                    bgcolor: "#fff",
+                }}
+            >
                 {/* Header with Back Button and Title */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                     <Button
@@ -675,13 +684,13 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                             <Typography variant="body1">{formError}</Typography>
                         </MotionBox>
                     )}
-                    
+
                     {/* Question type buttons and search (BOTTOM) */}
                     {!readonly && <AddQuestionButtons />}
 
                     {!readonly && (
                         <Box sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}>
-                               <Button
+                            <Button
                                 variant="outlined"
                                 startIcon={<ListIcon />}
                                 onClick={() => navigate('/tutor-exam-list')} // Navigate to the tutor exam list
@@ -701,10 +710,10 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                                     },
                                     transition: 'all 0.3s ease-in-out',
                                 }}
-                                >
+                            >
                                 Go to Exam List
-                                </Button>
-                                <Button
+                            </Button>
+                            <Button
                                 type="submit"
                                 variant="contained"
                                 startIcon={<SaveIcon />}
@@ -722,9 +731,9 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                                     },
                                     transition: 'all 0.3s ease-in-out',
                                 }}
-                                >
+                            >
                                 {examData ? "Save Changes" : "Save Exam"}
-                                </Button>
+                            </Button>
                         </Box>
                     )}
                 </form>

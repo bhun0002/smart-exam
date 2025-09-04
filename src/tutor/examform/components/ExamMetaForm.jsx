@@ -9,6 +9,7 @@ import {
   Select,
   MenuItem,
   Typography,
+  Tooltip,
 } from "@mui/material";
 
 const ExamMetaForm = ({
@@ -23,6 +24,7 @@ const ExamMetaForm = ({
   intakesError,
   fieldErrors,
   setFieldErrors,
+  totalPoints,
 }) => {
   return (
     <Card
@@ -123,6 +125,30 @@ const ExamMetaForm = ({
               )}
             </FormControl>
           </Grid>
+          <Grid item xs={12} md={3}>
+          <Tooltip title="Auto-calculated from each question's points." arrow>
+            <TextField
+              id="exam-total-points"
+              label="Total Points"
+              value={totalPoints}
+              fullWidth
+              disabled
+              InputProps={{
+                readOnly: true,
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "12px",
+                  backgroundColor: "#f1f8e9",
+                },
+                "& .MuiInputBase-input.Mui-disabled": {
+                  WebkitTextFillColor: "#1B5E20 !important",
+                  fontWeight: 700,
+                },
+              }}
+            />
+          </Tooltip>
+        </Grid>
         </Grid>
       </CardContent>
     </Card>

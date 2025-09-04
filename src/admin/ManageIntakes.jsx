@@ -1,334 +1,513 @@
 // src/admin/ManageIntakes.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { db } from "../firebaseConfig";
 import {
-    collection,
-    addDoc,
-    getDocs,
-    updateDoc,
-    doc,
-    deleteDoc,
-    serverTimestamp,
-    query,
-    orderBy,
-    where,
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  doc,
+  deleteDoc,
+  serverTimestamp,
+  query,
+  orderBy,
 } from "firebase/firestore";
 import {
-    Box,
-    Typography,
-    Button,
-    Paper,
-    Divider,
-    Snackbar,
-    Alert as MuiAlert,
-    TextField,
-    CircularProgress,
-    Dialog, DialogActions, DialogContent, DialogTitle,
-    List, ListItem, ListItemText, ListItemSecondaryAction, IconButton
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Divider,
+  Snackbar,
+  Alert as MuiAlert,
+  TextField,
+  CircularProgress,
+  Dialog, DialogActions, DialogContent, DialogTitle,
+  List, ListItem, ListItemText, ListItemSecondaryAction, IconButton,
+  Grid,
+  MenuItem,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // For back button
-import SchoolIcon from '@mui/icons-material/School'; // For intake icon
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SchoolIcon from '@mui/icons-material/School';
+
+// ---- Month helpers ----
+const MONTHS = [
+  { idx: 0, full: "January",   short: "Jan" },
+  { idx: 1, full: "February",  short: "Feb" },
+  { idx: 2, full: "March",     short: "Mar" },
+  { idx: 3, full: "April",     short: "Apr" },
+  { idx: 4, full: "May",       short: "May" },
+  { idx: 5, full: "June",      short: "Jun" },
+  { idx: 6, full: "July",      short: "Jul" },
+  { idx: 7, full: "August",    short: "Aug" },
+  { idx: 8, full: "September", short: "Sep" },
+  { idx: 9, full: "October",   short: "Oct" },
+  { idx: 10, full: "November", short: "Nov" },
+  { idx: 11, full: "December", short: "Dec" },
+];
+
+const monthNameToIndex = (name) => {
+  if (!name) return -1;
+  const n = name.toLowerCase();
+  const found = MONTHS.find(m => m.full.toLowerCase() === n || m.short.toLowerCase() === n);
+  return found ? found.idx : -1;
+};
+
+// Try to parse strings like "Apr 2025" or "April 2025"
+const parseIntakeName = (name) => {
+  if (!name || typeof name !== "string") return { ok: false };
+  const parts = name.trim().split(/\s+/); // split by spaces
+  if (parts.length !== 2) return { ok: false };
+
+  const mIdx = monthNameToIndex(parts[0]);
+  const year = Number(parts[1]);
+
+  if (mIdx < 0 || !Number.isInteger(year) || year < 1900 || year > 3000) {
+    return { ok: false };
+  }
+  return { ok: true, monthIndex: mIdx, year };
+};
+
+const buildIntakeName = (monthIndex, year) => {
+  const m = MONTHS[monthIndex];
+  return `${m.short} ${year}`; // <-- SHORT month + full year (e.g., "Apr 2025")
+};
+
+// Build a small year range (customize as needed)
+const buildYearOptions = () => {
+  const y = new Date().getFullYear();
+  const start = y - 1;
+  const end = y + 6;
+  const out = [];
+  for (let i = start; i <= end; i++) out.push(i);
+  return out;
+};
 
 // --- ManageIntakes Main Component ---
 const ManageIntakes = () => {
-    const [intakes, setIntakes] = useState([]);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
-    const [loading, setLoading] = useState(true);
-    
-    // Intake form/modal states
-    const [currentIntakeName, setCurrentIntakeName] = useState(''); // For adding new intake
-    const [openIntakeModal, setOpenIntakeModal] = useState(false); // Controls the edit modal visibility
-    const [editingIntakeId, setEditingIntakeId] = useState(null); // ID of intake being edited
-    const [editingIntakeName, setEditingIntakeName] = useState(''); // Name of intake being edited
+  const [intakes, setIntakes] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(true);
 
-    const navigate = useNavigate();
-    const intakesCollectionRef = collection(db, "intakes");
+  // Add Intake (month/year) states
+  const now = new Date();
+  const [addMonthIndex, setAddMonthIndex] = useState(now.getMonth());
+  const [addYear, setAddYear] = useState(now.getFullYear());
 
-    const clearMessages = () => {
-        setError("");
-        setSuccess("");
-    };
+  // Edit modal states
+  const [openIntakeModal, setOpenIntakeModal] = useState(false);
+  const [editingIntakeId, setEditingIntakeId] = useState(null);
+  const [editMonthIndex, setEditMonthIndex] = useState(now.getMonth());
+  const [editYear, setEditYear] = useState(now.getFullYear());
+  const [editFreeText, setEditFreeText] = useState(""); // fallback if unparsable
+  const [editParsed, setEditParsed] = useState(true);   // toggles parser result
 
-    // --- Intake Management Functions ---
-    const getIntakes = async () => {
-        setLoading(true);
-        try {
-            const q = query(intakesCollectionRef, orderBy("name", "asc"));
-            const data = await getDocs(q);
-            setIntakes(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
-            clearMessages();
-        } catch (err) {
-            console.error("Error fetching intakes:", err);
-            setError("Failed to fetch intakes. Check console for details.");
-        } finally {
-            setLoading(false);
-        }
-    };
+  const navigate = useNavigate();
+  const intakesCollectionRef = collection(db, "intakes");
 
-    useEffect(() => {
-        getIntakes();
-    }, []);
+  const clearMessages = () => {
+    setError("");
+    setSuccess("");
+  };
 
-    useEffect(() => {
-        if (success) {
-            const timer = setTimeout(() => {
-                setSuccess("");
-            }, 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [success]);
+  const getIntakes = async () => {
+    setLoading(true);
+    try {
+      const q = query(intakesCollectionRef, orderBy("name", "asc"));
+      const data = await getDocs(q);
+      setIntakes(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+      clearMessages();
+    } catch (err) {
+      console.error("Error fetching intakes:", err);
+      setError("Failed to fetch intakes. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const handleAddIntake = async () => { // No need to pass intakeName, use currentIntakeName state
-        clearMessages();
-        if (!currentIntakeName.trim()) {
-            setError("Intake name cannot be empty.");
-            return;
-        }
-        const exists = intakes.some(intake => intake.name.toLowerCase() === currentIntakeName.toLowerCase());
-        if (exists) {
-            setError("An intake with this name already exists.");
-            return;
-        }
-        try {
-            await addDoc(intakesCollectionRef, {
-                name: currentIntakeName.trim(),
-                createdAt: serverTimestamp(),
-            });
-            setSuccess(`Intake "${currentIntakeName.trim()}" added successfully!`);
-            setCurrentIntakeName(''); // Clear input field after adding
-            getIntakes();
-        } catch (err) {
-            console.error("Error adding intake:", err);
-            setError("Failed to add intake. " + err.message);
-        }
-    };
+  useEffect(() => {
+    getIntakes();
+  }, []);
 
-    const handleUpdateIntake = async () => { // No need to pass id/name, use state
-        clearMessages();
-        if (!editingIntakeName.trim()) {
-            setError("Intake name cannot be empty.");
-            return;
-        }
-        const exists = intakes.some(intake => intake.name.toLowerCase() === editingIntakeName.toLowerCase() && intake.id !== editingIntakeId);
-        if (exists) {
-            setError("An intake with this name already exists.");
-            return;
-        }
-        try {
-            const intakeDoc = doc(db, "intakes", editingIntakeId);
-            await updateDoc(intakeDoc, { name: editingIntakeName.trim() });
-            setSuccess(`Intake updated to "${editingIntakeName.trim()}" successfully!`);
-            setOpenIntakeModal(false); // Close modal on success
-            setEditingIntakeId(null); // Clear editing state
-            setEditingIntakeName(''); // Clear editing name
-            getIntakes();
-        } catch (err) {
-            console.error("Error updating intake:", err);
-            setError("Failed to update intake. " + err.message);
-        }
-    };
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
-    const handleDeleteIntake = async (id) => {
-        // IMPORTANT: Use custom modal, not window.confirm
-        // For now, I'll keep window.confirm to avoid adding a new modal component immediately.
-        // In a production app, replace this with a custom Material-UI Dialog.
-        if (window.confirm("Are you sure you want to delete this intake? This action cannot be undone.")) {
-            clearMessages();
-            try {
-                const intakeDoc = doc(db, "intakes", id);
-                await deleteDoc(intakeDoc);
-                setSuccess("Intake deleted successfully!");
-                getIntakes();
-            } catch (err) {
-                console.error("Error deleting intake:", err);
-                setError("Failed to delete intake. " + err.message);
-            }
-        }
-    };
+  // Lowercased set of existing names for quick duplicate check
+  const existingNames = useMemo(
+    () => new Set(intakes.map(i => (i.name || "").toLowerCase())),
+    [intakes]
+  );
 
-    const handleOpenEditModal = (intake) => {
-        setEditingIntakeId(intake.id);
-        setEditingIntakeName(intake.name);
-        setOpenIntakeModal(true);
-        clearMessages(); // Clear messages when opening modal
-    };
+  // --- Add Intake ---
+  const handleAddIntake = async () => {
+    clearMessages();
 
-    const handleCloseEditModal = () => {
-        setOpenIntakeModal(false);
-        setEditingIntakeId(null);
-        setEditingIntakeName('');
-        clearMessages(); // Clear messages when closing modal
-    };
+    // build short name (e.g., "Apr 2025")
+    const name = buildIntakeName(addMonthIndex, addYear);
 
+    if (existingNames.has(name.toLowerCase())) {
+      setError(`An intake named "${name}" already exists.`);
+      return;
+    }
 
-    return (
-        <Box
-            sx={{
-                background: 'linear-gradient(135deg, #C1FFD7, #FFDDC1)', // Intake-themed gradient
-                minHeight: '100vh',
-                padding: '32px 0',
-                fontFamily: 'Roboto, sans-serif',
-            }}
-        >
-            <Paper
-                elevation={12}
-                sx={{
-                    padding: { xs: 3, md: 5 },
-                    borderRadius: '24px',
-                    backgroundColor: '#ffffff',
-                    maxWidth: { xs: '95%', md: 1000 },
-                    mx: 'auto',
-                    boxShadow: '0px 15px 40px rgba(0,0,0,0.1)',
-                }}
-            >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-                    <Button
-                        variant="outlined"
-                        startIcon={<ArrowBackIcon />}
-                        onClick={() => navigate("/admin-dashboard")}
-                        sx={{
-                            borderColor: '#8d6e63', color: '#8d6e63', borderRadius: '12px', fontWeight: 'bold',
-                            '&:hover': { backgroundColor: '#efebe9' }
-                        }}
-                    >
-                        Back to Dashboard
-                    </Button>
-                    <Typography variant="h4" fontWeight="bold" color="#37474f" sx={{ flexGrow: 1, textAlign: 'center' }}>
-                        Manage Intakes
-                    </Typography>
-                    <Box sx={{ width: '150px' }} /> {/* Placeholder to balance title */}
-                </Box>
-                <Divider sx={{ mb: 4 }} />
+    try {
+      await addDoc(intakesCollectionRef, {
+        name,
+        createdAt: serverTimestamp(),
+      });
+      setSuccess(`Intake "${name}" added successfully!`);
+      await getIntakes();
+    } catch (err) {
+      console.error("Error adding intake:", err);
+      setError("Failed to add intake. " + err.message);
+    }
+  };
 
-                {/* Add New Intake Form */}
-                <Paper elevation={3} sx={{ p: 3, borderRadius: '16px', bgcolor: '#fdfdfd', mb: 4 }}>
-                    <Typography variant="h6" fontWeight="bold" color="#455a64" sx={{ mb: 2 }}>
-                        Add New Intake
-                    </Typography>
-                    {error && <MuiAlert severity="error" sx={{ mb: 2 }}>{error}</MuiAlert>}
-                    {success && <MuiAlert severity="success" sx={{ mb: 2 }}>{success}</MuiAlert>}
-                    <TextField
-                        label="New Intake Name (e.g., April 2025)"
-                        variant="outlined"
-                        fullWidth
-                        sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-                        value={currentIntakeName}
-                        onChange={(e) => setCurrentIntakeName(e.target.value)}
-                    />
-                    <Button
-                        variant="contained"
-                        onClick={handleAddIntake}
-                        disabled={!currentIntakeName.trim()}
-                        startIcon={<AddCircleOutlineIcon />}
-                        sx={{
-                            backgroundColor: '#A5D6A7',
-                            '&:hover': { backgroundColor: '#81C784' },
-                            color: '#1B5E20',
-                            borderRadius: '12px', fontWeight: 'bold'
-                        }}
-                    >
-                        Add Intake
-                    </Button>
-                </Paper>
+  // --- Edit Intake ---
+  const handleOpenEditModal = (intake) => {
+    clearMessages();
+    setEditingIntakeId(intake.id);
 
-                {/* Existing Intakes List */}
-                <Paper elevation={3} sx={{ p: 3, borderRadius: '16px', bgcolor: '#fdfdfd' }}>
-                    <Typography variant="h6" fontWeight="bold" color="#455a64" sx={{ mb: 2 }}>
-                        Existing Intakes
-                    </Typography>
-                    {loading ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                            <CircularProgress />
-                        </Box>
-                    ) : intakes.length === 0 ? (
-                        <Typography textAlign="center" color="text.secondary" sx={{ py: 3 }}>
-                            No intakes added yet.
-                        </Typography>
-                    ) : (
-                        <List>
-                            {intakes.map((intake) => (
-                                <ListItem
-                                    key={intake.id}
-                                    divider
-                                    sx={{ '&:nth-of-type(odd)': { bgcolor: '#fcfcfc' }, borderRadius: '8px' }}
-                                >
-                                    <SchoolIcon sx={{ mr: 2, color: '#4CAF50' }} />
-                                    <ListItemText primary={intake.name} />
-                                    <ListItemSecondaryAction>
-                                        <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditModal(intake)}>
-                                            <EditIcon color="primary" />
-                                        </IconButton>
-                                        <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteIntake(intake.id)}>
-                                            <DeleteOutlineIcon color="error" />
-                                        </IconButton>
-                                    </ListItemSecondaryAction>
-                                </ListItem>
-                            ))}
-                        </List>
-                    )}
-                </Paper>
+    const parsed = parseIntakeName(intake.name);
+    if (parsed.ok) {
+      setEditParsed(true);
+      setEditMonthIndex(parsed.monthIndex);
+      setEditYear(parsed.year);
+      setEditFreeText(""); // not used
+    } else {
+      // fallback: allow free text edit if unparsable
+      setEditParsed(false);
+      setEditFreeText(intake.name || "");
+    }
+    setOpenIntakeModal(true);
+  };
 
-                {/* Edit Intake Dialog */}
-                <Dialog open={openIntakeModal} onClose={handleCloseEditModal}>
-                    <DialogTitle>Edit Intake</DialogTitle>
-                    <DialogContent>
-                        <TextField
-                            autoFocus
-                            margin="dense"
-                            id="intake-name"
-                            label="Intake Name"
-                            type="text"
-                            fullWidth
-                            variant="outlined" // Consistent with other text fields
-                            value={editingIntakeName}
-                            onChange={(e) => setEditingIntakeName(e.target.value)}
-                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-                        />
-                         {error && <MuiAlert severity="error" sx={{ mt: 2 }}>{error}</MuiAlert>}
-                         {success && <MuiAlert severity="success" sx={{ mt: 2 }}>{success}</MuiAlert>}
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={handleCloseEditModal}>Cancel</Button>
-                        <Button
-                            onClick={handleUpdateIntake}
-                            disabled={!editingIntakeName.trim()}
-                            variant="contained"
-                            sx={{
-                                backgroundColor: '#FFB74D',
-                                '&:hover': { backgroundColor: '#FF9800' },
-                                color: '#E65100',
-                                borderRadius: '8px', fontWeight: 'bold'
-                            }}
-                        >
-                            Save
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-            </Paper>
+  const handleCloseEditModal = () => {
+    setOpenIntakeModal(false);
+    setEditingIntakeId(null);
+    setEditFreeText("");
+    clearMessages();
+  };
 
-            <Snackbar
-                open={!!(error || success)}
-                autoHideDuration={5000}
-                onClose={clearMessages}
-                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-            >
-                <MuiAlert
-                    onClose={clearMessages}
-                    severity={error ? "error" : "success"}
-                    elevation={6}
-                    variant="filled"
-                    sx={{ backgroundColor: error ? "#F44336" : "#4CAF50" }}
-                >
-                    {error || success}
-                </MuiAlert>
-            </Snackbar>
-        </Box>
+  const handleUpdateIntake = async () => {
+    clearMessages();
+
+    let newName = "";
+    if (editParsed) {
+      newName = buildIntakeName(editMonthIndex, editYear);
+    } else {
+      const txt = (editFreeText || "").trim();
+      if (!txt) {
+        setError("Intake name cannot be empty.");
+        return;
+      }
+      newName = txt;
+    }
+
+    // Prevent duplicates (ignore the one we are editing)
+    const dup = intakes.some(
+      (i) => i.id !== editingIntakeId && (i.name || "").toLowerCase() === newName.toLowerCase()
     );
+    if (dup) {
+      setError(`An intake named "${newName}" already exists.`);
+      return;
+    }
+
+    try {
+      const intakeDoc = doc(db, "intakes", editingIntakeId);
+      await updateDoc(intakeDoc, { name: newName });
+      setSuccess(`Intake updated to "${newName}" successfully!`);
+      handleCloseEditModal();
+      await getIntakes();
+    } catch (err) {
+      console.error("Error updating intake:", err);
+      setError("Failed to update intake. " + err.message);
+    }
+  };
+
+  // --- Delete Intake ---
+  const handleDeleteIntake = async (id) => {
+    if (!window.confirm("Delete this intake? This action cannot be undone.")) return;
+    clearMessages();
+    try {
+      const intakeDoc = doc(db, "intakes", id);
+      await deleteDoc(intakeDoc);
+      setSuccess("Intake deleted successfully!");
+      await getIntakes();
+    } catch (err) {
+      console.error("Error deleting intake:", err);
+      setError("Failed to delete intake. " + err.message);
+    }
+  };
+
+  const yearOptions = useMemo(buildYearOptions, []);
+
+  return (
+    <Box
+      sx={{
+        background: 'linear-gradient(135deg, #C1FFD7, #FFDDC1)',
+        minHeight: '100vh',
+        padding: '32px 0',
+        fontFamily: 'Roboto, sans-serif',
+      }}
+    >
+      <Paper
+        elevation={12}
+        sx={{
+          padding: { xs: 3, md: 5 },
+          borderRadius: '24px',
+          backgroundColor: '#ffffff',
+          maxWidth: { xs: '95%', md: 1000 },
+          mx: 'auto',
+          boxShadow: '0px 15px 40px rgba(0,0,0,0.1)',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate("/admin-dashboard")}
+            sx={{
+              borderColor: '#8d6e63', color: '#8d6e63', borderRadius: '12px', fontWeight: 'bold',
+              '&:hover': { backgroundColor: '#efebe9' }
+            }}
+          >
+            Back to Dashboard
+          </Button>
+          <Typography variant="h4" fontWeight="bold" color="#37474f" sx={{ flexGrow: 1, textAlign: 'center' }}>
+            Manage Intakes
+          </Typography>
+          <Box sx={{ width: '150px' }} />
+        </Box>
+        <Divider sx={{ mb: 4 }} />
+
+        {/* Add New Intake (Month + Year) */}
+        <Paper elevation={3} sx={{ p: 3, borderRadius: '16px', bgcolor: '#fdfdfd', mb: 4 }}>
+          <Typography variant="h6" fontWeight="bold" color="#455a64" sx={{ mb: 2 }}>
+            Add New Intake
+          </Typography>
+
+          {error && <MuiAlert severity="error" sx={{ mb: 2 }}>{error}</MuiAlert>}
+          {success && <MuiAlert severity="success" sx={{ mb: 2 }}>{success}</MuiAlert>}
+
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Month"
+                value={addMonthIndex}
+                onChange={(e) => setAddMonthIndex(Number(e.target.value))}
+                InputProps={{ sx: { borderRadius: '12px' } }}
+              >
+                {MONTHS.map(m => (
+                  <MenuItem key={m.idx} value={m.idx}>{m.full} ({m.short})</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <TextField
+                select
+                fullWidth
+                label="Year"
+                value={addYear}
+                onChange={(e) => setAddYear(Number(e.target.value))}
+                InputProps={{ sx: { borderRadius: '12px' } }}
+              >
+                {yearOptions.map(y => (
+                  <MenuItem key={y} value={y}>{y}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={2}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={handleAddIntake}
+                startIcon={<AddCircleOutlineIcon />}
+                sx={{
+                  backgroundColor: '#A5D6A7',
+                  '&:hover': { backgroundColor: '#81C784' },
+                  color: '#1B5E20',
+                  borderRadius: '12px', fontWeight: 'bold', height: '56px'
+                }}
+              >
+                Add
+              </Button>
+            </Grid>
+
+            {/* Live preview of the string that will be saved */}
+            <Grid item xs={12}>
+              <Typography variant="body2" color="text.secondary">
+                Will save as: <strong>{buildIntakeName(addMonthIndex, addYear)}</strong>
+              </Typography>
+            </Grid>
+          </Grid>
+        </Paper>
+
+        {/* Existing Intakes List */}
+        <Paper elevation={3} sx={{ p: 3, borderRadius: '16px', bgcolor: '#fdfdfd' }}>
+          <Typography variant="h6" fontWeight="bold" color="#455a64" sx={{ mb: 2 }}>
+            Existing Intakes
+          </Typography>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : intakes.length === 0 ? (
+            <Typography textAlign="center" color="text.secondary" sx={{ py: 3 }}>
+              No intakes added yet.
+            </Typography>
+          ) : (
+            <List>
+              {intakes.map((intake) => (
+                <ListItem
+                  key={intake.id}
+                  divider
+                  sx={{ '&:nth-of-type(odd)': { bgcolor: '#fcfcfc' }, borderRadius: '8px' }}
+                >
+                  <SchoolIcon sx={{ mr: 2, color: '#4CAF50' }} />
+                  <ListItemText primary={intake.name} />
+                  <ListItemSecondaryAction>
+                    <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditModal(intake)}>
+                      <EditIcon color="primary" />
+                    </IconButton>
+                    <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteIntake(intake.id)}>
+                      <DeleteOutlineIcon color="error" />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Paper>
+
+        {/* Edit Intake Dialog */}
+        <Dialog open={openIntakeModal} onClose={handleCloseEditModal} fullWidth maxWidth="sm">
+          <DialogTitle>Edit Intake</DialogTitle>
+          <DialogContent>
+            {editParsed ? (
+              <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                <Grid item xs={12} sm={7}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Month"
+                    value={editMonthIndex}
+                    onChange={(e) => setEditMonthIndex(Number(e.target.value))}
+                    InputProps={{ sx: { borderRadius: '12px' } }}
+                  >
+                    {MONTHS.map(m => (
+                      <MenuItem key={m.idx} value={m.idx}>{m.full} ({m.short})</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={5}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Year"
+                    value={editYear}
+                    onChange={(e) => setEditYear(Number(e.target.value))}
+                    InputProps={{ sx: { borderRadius: '12px' } }}
+                  >
+                    {yearOptions.map(y => (
+                      <MenuItem key={y} value={y}>{y}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Will save as: <strong>{buildIntakeName(editMonthIndex, editYear)}</strong>
+                  </Typography>
+                </Grid>
+              </Grid>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  The current name couldn’t be parsed into Month/Year. You can edit it directly below.
+                </Typography>
+                <TextField
+                  autoFocus
+                  margin="dense"
+                  id="intake-name"
+                  label="Intake Name"
+                  type="text"
+                  fullWidth
+                  variant="outlined"
+                  value={editFreeText}
+                  onChange={(e) => setEditFreeText(e.target.value)}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                />
+                <Typography
+                  variant="body2"
+                  color="primary"
+                  sx={{ mt: 1, cursor: "pointer", textDecoration: "underline" }}
+                  onClick={() => {
+                    // Try to parse what user typed into Month/Year mode
+                    const p = parseIntakeName(editFreeText);
+                    if (p.ok) {
+                      setEditParsed(true);
+                      setEditMonthIndex(p.monthIndex);
+                      setEditYear(p.year);
+                    }
+                  }}
+                >
+                  Try to parse as Month/Year
+                </Typography>
+              </>
+            )}
+
+            {error && <MuiAlert severity="error" sx={{ mt: 2 }}>{error}</MuiAlert>}
+            {success && <MuiAlert severity="success" sx={{ mt: 2 }}>{success}</MuiAlert>}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseEditModal}>Cancel</Button>
+            <Button
+              onClick={handleUpdateIntake}
+              variant="contained"
+              sx={{
+                backgroundColor: '#FFB74D',
+                '&:hover': { backgroundColor: '#FF9800' },
+                color: '#E65100',
+                borderRadius: '8px', fontWeight: 'bold'
+              }}
+            >
+              Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Paper>
+
+      <Snackbar
+        open={!!(error || success)}
+        autoHideDuration={5000}
+        onClose={clearMessages}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <MuiAlert
+          onClose={clearMessages}
+          severity={error ? "error" : "success"}
+          elevation={6}
+          variant="filled"
+          sx={{ backgroundColor: error ? "#F44336" : "#4CAF50" }}
+        >
+          {error || success}
+        </MuiAlert>
+      </Snackbar>
+    </Box>
+  );
 };
 
 export default ManageIntakes;
