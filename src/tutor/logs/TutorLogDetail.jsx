@@ -25,7 +25,6 @@ const severityChipColor = (sev) => {
 
 // ---- Helpers -------------------------------------------------
 const toDate = (ts) => {
-  // ts may be ISO string we saved; fall back safely
   const d = new Date(ts);
   return isNaN(d) ? null : d;
 };
@@ -100,6 +99,10 @@ const TutorLogDetail = () => {
   const [docData, setDocData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // NEW: display fields resolved from related collections
+  const [displayExamTitle, setDisplayExamTitle] = useState("—");
+  const [displayStudentMintedId, setDisplayStudentMintedId] = useState("—");
+
   // Filters
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState(["high", "medium", "low"]); // multi
@@ -109,7 +112,7 @@ const TutorLogDetail = () => {
 
   const refreshTimer = useRef(null);
 
-  // fetch
+  // fetch main proctor log doc
   const fetchDoc = async () => {
     setLoading(true);
     try {
@@ -132,6 +135,35 @@ const TutorLogDetail = () => {
     refreshTimer.current = setInterval(fetchDoc, 10000);
     return () => { if (refreshTimer.current) clearInterval(refreshTimer.current); };
   }, [autoRefresh]); // eslint-disable-line
+
+  // NEW: resolve exam title and minted studentId whenever we have IDs
+  useEffect(() => {
+    const resolveRefs = async () => {
+      try {
+        // exam title
+        if (docData?.examId) {
+          const exSnap = await getDoc(doc(db, "exams", docData.examId));
+          setDisplayExamTitle(exSnap.exists() ? (exSnap.data().title || docData.examId) : docData.examId);
+        } else {
+          setDisplayExamTitle("—");
+        }
+
+        // minted studentId (e.g., "250902") saved on students/{studentDocId}.studentId
+        if (docData?.studentId) {
+          const stSnap = await getDoc(doc(db, "students", docData.studentId));
+          setDisplayStudentMintedId(stSnap.exists() ? (stSnap.data().studentId || docData.studentId) : docData.studentId);
+        } else {
+          setDisplayStudentMintedId("—");
+        }
+      } catch (e) {
+        // If anything fails, gracefully fall back to raw IDs
+        if (docData?.examId && !displayExamTitle) setDisplayExamTitle(docData.examId);
+        if (docData?.studentId && !displayStudentMintedId) setDisplayStudentMintedId(docData.studentId);
+      }
+    };
+    resolveRefs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docData?.examId, docData?.studentId]);
 
   // derive
   const allEvents = docData?.events || [];
@@ -234,8 +266,9 @@ const TutorLogDetail = () => {
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "flex-start", md: "center" }} justifyContent="space-between">
           <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
             <Chip label={docData?.studentName || "—"} sx={{ borderRadius: "8px" }} />
-            <Chip label={`Student ID: ${docData?.studentId || "—"}`} sx={{ borderRadius: "8px" }} />
-            <Chip label={`Exam ID: ${docData?.examId || "—"}`} sx={{ borderRadius: "8px" }} />
+            {/* UPDATED: show minted Student ID and Exam Title */}
+            <Chip label={`Student ID: ${displayStudentMintedId}`} sx={{ borderRadius: "8px" }} />
+            <Chip label={`Exam: ${displayExamTitle}`} sx={{ borderRadius: "8px" }} />
           </Stack>
           <Typography variant="body2" color="text.secondary">Updated: {updatedAt}</Typography>
         </Stack>
