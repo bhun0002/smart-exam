@@ -1,9 +1,11 @@
+// src/student/StudentTakeExam/StudentTakeExam.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Box, Paper, CircularProgress, Typography, Grid, useMediaQuery, useTheme } from "@mui/material";
 import { db } from "../../firebaseConfig"; // adjust if your path differs
 import { doc, getDoc, serverTimestamp, updateDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "../../AuthContext"; // adjust path
+import { startProctoring, stopProctoring } from "../../proctoring/logService";
 
 import StudentQuestionDisplay from "./components/StudentQuestionDisplay";
 import ExamHeader from "./components/ExamHeader";
@@ -42,6 +44,9 @@ const StudentTakeExam = () => {
   const submissionIdRef = useRef(submissionId);
   const examRef = useRef(exam);
   const userRef = useRef(user);
+
+  // 🔑 keep controller returned by startProctoring
+  const proctoringControllerRef = useRef(null);
 
   useEffect(() => {
     studentAnswersRef.current = studentAnswers;
@@ -200,9 +205,7 @@ const StudentTakeExam = () => {
         }
 
         setExam({ id: examSnap.id, ...examData });
-        setQuestions(
-          examData.questions.map((q) => ({ ...q, id: q.id }))
-        );
+        setQuestions(examData.questions.map((q) => ({ ...q, id: q.id })));
 
         const studentSubmissionDocId = `${examId}_${user.id}`;
         const submissionDocRef = doc(db, "examSubmissions", studentSubmissionDocId);
@@ -250,6 +253,29 @@ const StudentTakeExam = () => {
           setSnackbarSeverity("success");
           setSnackbarOpen(true);
         }
+
+        // ✅ Start proctoring after submission is ready
+        if (!proctoringControllerRef.current) {
+          const controller = startProctoring({
+            submissionId: studentSubmissionDocId,
+            examId,
+            studentId: user.id,
+            studentName: user.name || user.email || "Student",
+            requireFullscreen: false,
+            severityMap: {
+              visibilityHidden: "high",
+              windowBlur: "high",
+              keyMacScreenshot: "high",
+              keyPrintScreen: "high",
+              beforePrint: "high",
+              contextMenu: "medium",
+              copy: "high",
+              paste: "high",
+              afterPrint: "low",
+            },
+          });
+          proctoringControllerRef.current = controller;
+        }
       } catch (error) {
         console.error("[Setup] Error:", error);
         setSnackbarMessage("Failed to load exam. Please try again.");
@@ -267,6 +293,11 @@ const StudentTakeExam = () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
+      }
+      // ✅ Stop proctoring when unmounting
+      if (proctoringControllerRef.current) {
+        stopProctoring(proctoringControllerRef.current);
+        proctoringControllerRef.current = null;
       }
     };
   }, [examId, user, isAuthLoading, navigate, handleBackToList, handleSubmitExam]);
@@ -303,22 +334,21 @@ const StudentTakeExam = () => {
     setStudentAnswers((prev) => ({ ...prev, [questionId]: answer }));
   }, []);
 
-  // New function to clear the response for the current question
-     const handleClearResponse = useCallback(() => {
-         const currentQuestionId = questions[currentQuestionIndex]?.id;
-         if (currentQuestionId) {
-             setStudentAnswers((prevAnswers) => {
-                 const newAnswers = { ...prevAnswers };
-                 delete newAnswers[currentQuestionId]; // Remove the answer for the current question
-                 studentAnswersRef.current = newAnswers;
-                 return newAnswers;
-             });
-             setSnackbarMessage("Response cleared for this question.");
-             setSnackbarSeverity("info");
-             setSnackbarOpen(true);
-             saveStudentAnswersToDb(); // Trigger immediate auto-save for the cleared response
-         }
-     }, [currentQuestionIndex, questions, saveStudentAnswersToDb]);
+  const handleClearResponse = useCallback(() => {
+    const currentQuestionId = questions[currentQuestionIndex]?.id;
+    if (currentQuestionId) {
+      setStudentAnswers((prevAnswers) => {
+        const newAnswers = { ...prevAnswers };
+        delete newAnswers[currentQuestionId];
+        studentAnswersRef.current = newAnswers;
+        return newAnswers;
+      });
+      setSnackbarMessage("Response cleared for this question.");
+      setSnackbarSeverity("info");
+      setSnackbarOpen(true);
+      saveStudentAnswersToDb();
+    }
+  }, [currentQuestionIndex, questions, saveStudentAnswersToDb]);
 
   if (loading || isAuthLoading) {
     return (

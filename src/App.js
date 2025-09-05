@@ -11,6 +11,8 @@ import TutorExamForm from "./tutor/examform/TutorExamForm";
 import TutorExamList from "./tutor/examlist/TutorExamList";
 import ManageStudents from './tutor/ManageStudents';
 import ViewSubmissions from "./tutor/viewsubmission/ViewSubmissions";
+import TutorLogsList from "./tutor/logs/TutorLogsList";
+import TutorLogDetail from "./tutor/logs/TutorLogDetail";
 
 // Admin Components
 import AdminForm from "./admin/AdminForm"; // To be used for a registration route
@@ -79,6 +81,22 @@ const App = () => {
           element={
             <ProtectedRoute requiredRole="tutor">
               <ViewSubmissions />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor-view-logs"
+          element={
+            <ProtectedRoute requiredRole="tutor">
+              <TutorLogsList  />
+            </ProtectedRoute>
+          }
+        />
+         <Route
+          path="/tutor-view-logs/:submissionId"
+          element={
+            <ProtectedRoute requiredRole="tutor">
+              <TutorLogDetail  />
             </ProtectedRoute>
           }
         />
