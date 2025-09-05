@@ -69,18 +69,42 @@ const countByType = (events = []) => {
     .map(([type, count]) => ({ type, count }));
 };
 
-const downloadCSV = (rows, filename = "proctor-log.csv") => {
+// filename-safe slug for exam title
+const safeSlug = (s = "") =>
+  String(s)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+// UPDATED: CSV with a header block (student/exam) then events
+const downloadCSV = (rows, filename = "proctor-log.csv", headerInfo = {}) => {
   const headers = ["ts", "type", "severity", "meta"];
+
+  // header block (pretty)
+  const hdrLines = [
+    ["Student", headerInfo.studentName || ""],
+    ["Student ID", headerInfo.studentMintedId || ""],
+    ["Exam", headerInfo.examTitle || ""],
+    ["Updated", headerInfo.updatedAt || ""],
+    [], // blank line before table
+  ];
+
   const body = rows.map((r) => [
     r.ts || "",
     r.type || "",
     r.severity || "",
     r.meta ? JSON.stringify(r.meta).replaceAll('"', '""') : ""
   ]);
+
   const csv =
+    hdrLines
+      .map((r) => r.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(","))
+      .join("\n") +
+    "\n" +
     headers.join(",") +
     "\n" +
-    body.map((r) => r.map((c) => `"${String(c).replaceAll("\n", " ")}"`).join(",")).join("\n");
+    body.map((r) => r.map((c) => `"${String(c).replaceAll("\n", " ").replaceAll('"', '""')}"`).join(",")).join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -99,7 +123,7 @@ const TutorLogDetail = () => {
   const [docData, setDocData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // NEW: display fields resolved from related collections
+  // display fields resolved from related collections
   const [displayExamTitle, setDisplayExamTitle] = useState("—");
   const [displayStudentMintedId, setDisplayStudentMintedId] = useState("—");
 
@@ -136,7 +160,7 @@ const TutorLogDetail = () => {
     return () => { if (refreshTimer.current) clearInterval(refreshTimer.current); };
   }, [autoRefresh]); // eslint-disable-line
 
-  // NEW: resolve exam title and minted studentId whenever we have IDs
+  // resolve exam title and minted studentId whenever we have IDs
   useEffect(() => {
     const resolveRefs = async () => {
       try {
@@ -203,14 +227,10 @@ const TutorLogDetail = () => {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return allEvents.filter((e) => {
-      // severity
       if (!severityFilter.includes((e.severity || "low").toLowerCase())) return false;
-      // type
       if (typeFilter !== "all" && e.type !== typeFilter) return false;
-      // time
       const d = toDate(e.ts);
       if (!inRange(d, fromTime, toTime)) return false;
-      // search in type + meta
       if (term) {
         const hay = `${e.type || ""} ${JSON.stringify(e.meta || {})}`.toLowerCase();
         if (!hay.includes(term)) return false;
@@ -266,7 +286,6 @@ const TutorLogDetail = () => {
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "flex-start", md: "center" }} justifyContent="space-between">
           <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
             <Chip label={docData?.studentName || "—"} sx={{ borderRadius: "8px" }} />
-            {/* UPDATED: show minted Student ID and Exam Title */}
             <Chip label={`Student ID: ${displayStudentMintedId}`} sx={{ borderRadius: "8px" }} />
             <Chip label={`Exam: ${displayExamTitle}`} sx={{ borderRadius: "8px" }} />
           </Stack>
@@ -334,7 +353,20 @@ const TutorLogDetail = () => {
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}
-            onClick={() => downloadCSV(filtered, `proctor-log-${submissionId}.csv`)}
+            onClick={() =>
+              downloadCSV(
+                filtered,
+                // UPDATED filename: minted studentId + exam title
+                `proctor-log-${displayStudentMintedId}-${safeSlug(displayExamTitle)}.csv`,
+                // UPDATED header info (first lines of CSV)
+                {
+                  studentName: docData?.studentName || "",
+                  studentMintedId: displayStudentMintedId || "",
+                  examTitle: displayExamTitle || "",
+                  updatedAt: updatedAt || "",
+                }
+              )
+            }
             sx={{ borderRadius: "12px" }}
           >
             Export CSV
