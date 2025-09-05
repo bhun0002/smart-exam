@@ -19,8 +19,8 @@ import {
  * { studentId: "<minted YYMMxx like 250902>", name, ... }
  */
 
-const severityColor = (s) =>
-  s === "high" ? "error" : s === "medium" ? "warning" : "default";
+// const severityColor = (s) =>
+//   s === "high" ? "error" : s === "medium" ? "warning" : "default";
 
 const summarize = (events = []) => {
   const counts = { high: 0, medium: 0, low: 0 };
@@ -39,21 +39,22 @@ const TutorLogsList = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // map examId -> title (you already had this)
+  // map examId -> title
   const [examsMap, setExamsMap] = useState({});
 
-  // NEW: map students docId -> minted studentId (e.g., "250902")
+  // map students docId -> minted studentId (e.g., "250902")
   const [studentIdMap, setStudentIdMap] = useState({});
 
   // filters
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState("all"); // all | high | medium | low
+  const [examIdFilter, setExamIdFilter] = useState("all"); // filter by exam (only those with logs, latest first)
 
   // snackbar (unchanged shell)
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
   const closeSnack = (_, r) => r === "clickaway" ? null : setSnack(s => ({ ...s, open: false }));
 
-  // Load logs
+  // Load logs (ordered by updatedAt desc so latest shows first)
   useEffect(() => {
     (async () => {
       try {
@@ -88,7 +89,7 @@ const TutorLogsList = () => {
     })();
   }, []);
 
-  // NEW: Load students for minted ID mapping
+  // Load students for minted ID mapping
   useEffect(() => {
     (async () => {
       try {
@@ -96,8 +97,6 @@ const TutorLogsList = () => {
         const map = {};
         ssnap.docs.forEach((docu) => {
           const data = docu.data() || {};
-          // docu.id is the Firestore docId (the one saved in proctorLogs.studentId)
-          // data.studentId is the minted human ID you want to show (e.g., "250902")
           map[docu.id] = data.studentId || "";
         });
         setStudentIdMap(map);
@@ -107,6 +106,21 @@ const TutorLogsList = () => {
     })();
   }, []);
 
+  // Build exam options from *rows* (logs) so only exams with recorded logs appear.
+  // Because `rows` are already sorted by latest updatedAt desc, we keep the first
+  // seen order — which gives us "latest exam first" in the dropdown.
+  const examOptions = useMemo(() => {
+    const seen = new Set();
+    const orderedUnique = [];
+    for (const r of rows) {
+      if (r.examId && !seen.has(r.examId)) {
+        seen.add(r.examId);
+        orderedUnique.push(r.examId);
+      }
+    }
+    return orderedUnique.map((id) => ({ id, title: examsMap[id] || "(Untitled Exam)" }));
+  }, [rows, examsMap]);
+
   const filtered = useMemo(() => {
     const t = search.trim().toLowerCase();
     return rows.filter((r) => {
@@ -115,12 +129,15 @@ const TutorLogsList = () => {
 
       // resolve human (minted) id for search as well
       const humanId = studentIdMap[r.studentId] || r.studentId || "";
-      const hay = `${r.studentName || ""} ${humanId} ${r.examId || ""}`.toLowerCase();
+      const examTitle = examsMap[r.examId] || "";
+      const hay = `${r.studentName || ""} ${humanId} ${examTitle}`.toLowerCase();
 
       const searchOk = !t || hay.includes(t);
-      return sevOk && searchOk;
+      const examOk = examIdFilter === "all" ? true : r.examId === examIdFilter;
+
+      return sevOk && searchOk && examOk;
     });
-  }, [rows, search, severity, studentIdMap]);
+  }, [rows, search, severity, examIdFilter, studentIdMap, examsMap]);
 
   return (
     <Box sx={{ p: 4, minHeight: "100vh", bgcolor: "#f7f5f2" }}>
@@ -142,9 +159,10 @@ const TutorLogsList = () => {
 
       {/* Filters */}
       <Paper elevation={3} sx={{ p: 2, mb: 2, borderRadius: "12px" }}>
-        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 220px 120px", gap: 2 }}>
+        {/* grid includes the Exam filter (only exams that have logs, latest-first) */}
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 220px 220px 120px", gap: 2 }}>
           <TextField
-            label="Search (student, id, examId)"
+            label="Search (student, ID, exam)"
             size="small"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -153,6 +171,22 @@ const TutorLogsList = () => {
               sx: { borderRadius: "12px" }
             }}
           />
+
+          {/* Exam Title filter (from logs, latest-first) */}
+          <TextField
+            select
+            size="small"
+            label="Filter by Exam"
+            value={examIdFilter}
+            onChange={(e) => setExamIdFilter(e.target.value)}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+          >
+            <MenuItem value="all">All Exams</MenuItem>
+            {examOptions.map((opt) => (
+              <MenuItem key={opt.id} value={opt.id}>{opt.title}</MenuItem>
+            ))}
+          </TextField>
+
           <TextField
             select size="small" label="Severity" value={severity} onChange={(e) => setSeverity(e.target.value)}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
@@ -162,10 +196,11 @@ const TutorLogsList = () => {
             <MenuItem value="medium">Medium only</MenuItem>
             <MenuItem value="low">Low only</MenuItem>
           </TextField>
+
           <Button
             variant="outlined"
             startIcon={<ResetIcon />}
-            onClick={() => { setSearch(""); setSeverity("all"); }}
+            onClick={() => { setSearch(""); setSeverity("all"); setExamIdFilter("all"); }}
             sx={{ borderRadius: "12px" }}
           >
             Reset
@@ -204,7 +239,6 @@ const TutorLogsList = () => {
                   <TableCell>
                     <Stack spacing={0.5}>
                       <Typography variant="body2" sx={{ fontWeight: "bold" }}>{row.studentName || "—"}</Typography>
-                      {/* Show the minted human ID here */}
                       <Typography variant="caption" color="text.secondary">ID: {humanId}</Typography>
                     </Stack>
                   </TableCell>
