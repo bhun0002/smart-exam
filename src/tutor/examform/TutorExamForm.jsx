@@ -47,7 +47,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
   // intakes
   const { intakes, error: intakesErr } = useIntakes();
 
-  // points helper (same rules you used elsewhere)
+  // points helper
   const isValidPoints = (v) =>
     typeof v === "number" && !Number.isNaN(v) && v > 0 && v <= 100;
 
@@ -76,7 +76,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     }
   }, [examData]);
 
-  // live TOTAL POINTS (auto-updates when any question.points changes)
+  // live TOTAL POINTS
   const totalPoints = useMemo(() => {
     return (questions || []).reduce((sum, q) => {
       const n = Number(q?.points);
@@ -111,23 +111,83 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
 
   const handleCloseSnackbar = () => setIsSnackbarOpen(false);
 
+  // >>> CHANGED: signed upload via your API (logs added only)
   const uploadMedia = async (file) => {
     if (readonly || !file) return null;
     try {
+      // 1) get signature from your backend
+      const base = (process.env.REACT_APP_API_BASE || "").replace(/\/+$/, "");
+      if (!base) throw new Error("Missing REACT_APP_API_BASE in your .env");
+
+      try {
+        console.log("[uploadMedia] file:", {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
+      } catch (_) {}
+
+      const signUrl = `${base}/sign-upload`;
+      const signParams = { folder: "exam-media", access_mode: "authenticated" };
+      try {
+        console.log("[uploadMedia] GET", signUrl, "params:", signParams);
+      } catch (_) {}
+
+      const signRes = await axios.get(signUrl, { params: signParams });
+      const { timestamp, signature, cloudName, apiKey, folder, access_mode } = signRes.data || {};
+
+      try {
+        console.log("[uploadMedia] sign-response:", {
+          timestamp,
+          signature: !!signature,
+          cloudName,
+          apiKey: !!apiKey,
+          folder,
+          access_mode,
+        });
+      } catch (_) {}
+
+      // 2) prepare Cloudinary upload
       const formData = new FormData();
       formData.append("file", file);
-      formData.append(
-        "upload_preset",
-        process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET
-      );
-      const cloudName = process.env.REACT_APP_CLOUDINARY_URL.split("@")[1];
-      const res = await axios.post(
-        `https://api.cloudinary.com/v1_1/${cloudName}/upload`,
-        formData
-      );
-      return res.data.secure_url;
+      formData.append("timestamp", timestamp);
+      formData.append("api_key", apiKey);
+      formData.append("signature", signature);
+      if (folder) formData.append("folder", folder);
+      if (access_mode) formData.append("access_mode", access_mode);
+
+      // DEBUG: FormData preview
+      try {
+        const fdPreview = {};
+        for (const [k, v] of formData.entries()) {
+          fdPreview[k] = k === "file" ? `[File:${file.type}, ${file.size}B]` : v;
+        }
+        console.log("[uploadMedia] POST formData:", fdPreview);
+      } catch (_) {}
+
+      // use auto so images/videos both work
+      const uploadEndpoint = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+      try {
+        console.log("[uploadMedia] POST", uploadEndpoint);
+      } catch (_) {}
+
+      const res = await axios.post(uploadEndpoint, formData);
+
+      // return identifiers for secure delivery later
+      const { public_id, resource_type, format, version, access_mode: storedAccessMode } = res.data || {};
+      try {
+        console.log("[uploadMedia] upload-response:", { public_id, resource_type, format, version, access_mode: storedAccessMode });
+      } catch (_) {}
+
+      if (!public_id) throw new Error("Missing Cloudinary public_id");
+
+      return { public_id, resource_type, format, version }; // << store identifiers, not open URL
     } catch (e) {
-      console.error("Cloudinary upload error:", e);
+      console.error("[uploadMedia] ERROR:", e?.message || e);
+      if (e?.response) {
+        console.error("[uploadMedia] error.response.status:", e.response.status);
+        console.error("[uploadMedia] error.response.data:", e.response.data);
+      }
       setSnackbarMessage("Failed to upload media!");
       setIsSnackbarOpen(true);
       return null;
@@ -189,7 +249,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     });
   };
 
-  // validation – your same order (question/answers first, then points)
+  // validation – unchanged
   const validateQuestions = useCallback(() => {
     if (readonly) return null;
     if (!title || title.trim() === "") {
@@ -301,10 +361,10 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
       const withMedia = await Promise.all(
         questions.map(async (q) => {
           if (q.media instanceof File) {
-            const url = await uploadMedia(q.media);
-            return { ...q, media: url };
+            const identifiers = await uploadMedia(q.media);
+            return { ...q, media: identifiers }; // << now stores { public_id, ... }
           }
-          return q;
+          return q; // keep legacy string or existing identifiers
         })
       );
 
@@ -323,7 +383,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
         intakeId: selectedIntake,
         isDeleted: 0,
         questions: cleaned,
-        totalPoints, // <- store for fast listing
+        totalPoints,
       };
 
       if (examData?.id) {
@@ -377,7 +437,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
           intakesError={intakesErr}
           fieldErrors={fieldErrors}
           setFieldErrors={setFieldErrors}
-          totalPoints={totalPoints} // <- NEW
+          totalPoints={totalPoints}
         />
 
         {!readonly && (

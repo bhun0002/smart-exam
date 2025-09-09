@@ -1,4 +1,4 @@
-// src/components/MultipleChoiceForm.jsx
+// src/tutor/questionForms/MultipleChoiceForm.jsx
 
 import React from "react";
 import {
@@ -17,22 +17,23 @@ import {
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import PointsField from "./PointsField";
+import useMediaPreview, { isVideoFromMedia } from "../../shared/useMediaPreview";
 
 const MultipleChoiceForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
-    const [preview, setPreview] = React.useState(null);
     const fileInputRef = React.useRef(null);
+
+    // 🔄 NEW: derive preview via shared hook (supports File, string URL, or Cloudinary IDs)
+    const preview = useMediaPreview(question.media);
+    const isVideo = isVideoFromMedia(question.media);
 
     const generateUniqueId = () => Math.random().toString(36).substring(2, 9);
 
-    // UPDATED: Now accepts `propertyKey` (e.g., "question") and an optional `errorIdSuffix` (e.g., "question-text")
-    // This allows the error clearing logic to use a different ID suffix if the property key and error key differ.
+    // UPDATED: Now accepts `propertyKey` and optional `errorIdSuffix`
     const handleQuestionChange = (propertyKey, value, errorIdSuffix = propertyKey) => {
         if (readonly) return;
-        onChange({ ...question, [propertyKey]: value }); // Update the actual property on the question object
+        onChange({ ...question, [propertyKey]: value });
 
-        // Construct the fieldId using the provided suffix for clearing the error
         const fieldIdToClear = `question-${index}-${errorIdSuffix}`;
-
         if (fieldErrors[fieldIdToClear]) {
             setFieldErrors(prev => {
                 const newErrors = { ...prev };
@@ -42,7 +43,6 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
         }
     };
 
-    // This handler uses the option's array index to match the parent's error ID format
     const handleOptionChange = (optionIndex, value) => {
         if (readonly) return;
         const updatedOptions = question.options.map((opt, i) =>
@@ -50,7 +50,7 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
         );
         onChange({ ...question, options: updatedOptions });
 
-        const optionId = `question-${index}-option-${optionIndex}`; // Use the index 'i' to create the ID
+        const optionId = `question-${index}-option-${optionIndex}`;
         if (fieldErrors[optionId]) {
             setFieldErrors(prev => {
                 const newErrors = { ...prev };
@@ -80,14 +80,13 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
 
         const deletedOption = question.options.find(opt => opt.id === id);
         if (question.answer === deletedOption.text) {
-            handleQuestionChange("answer", ""); // "answer" as property key, "answer" as default errorIdSuffix
+            handleQuestionChange("answer", "");
         }
 
         onChange({ ...question, options: updatedOptions });
 
         setFieldErrors(prev => {
             const newErrors = { ...prev };
-            // A more robust way to clear all option-related errors
             Object.keys(newErrors).forEach(key => {
                 if (key.startsWith(`question-${index}-option-`)) {
                     delete newErrors[key];
@@ -98,16 +97,10 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
         });
     };
 
+    // 🔄 UPDATED: no FileReader here—preview comes from the hook
     const handleMediaChange = (file) => {
         if (readonly) return;
         onChange({ ...question, media: file });
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => setPreview(reader.result);
-            reader.readAsDataURL(file);
-        } else {
-            setPreview(null);
-        }
     };
 
     const deleteMedia = () => {
@@ -116,22 +109,7 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    React.useEffect(() => {
-        if (!question.media) {
-            setPreview(null);
-            return;
-        }
-
-        if (question.media instanceof File) {
-            const reader = new FileReader();
-            reader.onloadend = () => setPreview(reader.result);
-            reader.readAsDataURL(question.media);
-        } else {
-            setPreview(question.media);
-        }
-    }, [question.media]);
-
-    // This is the ID that the TextField will use for its `id` prop and that TutorForm uses for errors
+    // IDs for error mapping
     const questionId = `question-${index}-question-text`;
     const optionsId = `question-${index}-options`;
     const answerId = `question-${index}-answer`;
@@ -159,10 +137,9 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                 <TextField
                     fullWidth
                     label="Question Text"
-                    multiline // ⭐ ADDED: Enable multiline
-                    minRows={3} // ⭐ ADDED: Minimum 3 rows, expands as needed
+                    multiline
+                    minRows={3}
                     value={question.question || ""}
-                    // FIXED: Pass "question-text" as the errorIdSuffix to match parent's error key
                     onChange={(e) => handleQuestionChange("question", e.target.value, "question-text")}
                     margin="normal"
                     variant="outlined"
@@ -219,7 +196,7 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
 
                 {preview && (
                     <Box sx={{ mt: 2, textAlign: "center", border: '1px dashed #bdbdbd', p: 2, borderRadius: '12px' }}>
-                        {question.media?.type?.startsWith("video") ? (
+                        {isVideo ? (
                             <video
                                 src={preview}
                                 controls
@@ -251,8 +228,8 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                                 <TextField
                                     fullWidth
                                     label={`Option ${i + 1}`}
-                                    multiline // ⭐ ADDED: Enable multiline
-                                    minRows={1} // ⭐ ADDED: Minimum 1 row, expands as needed
+                                    multiline
+                                    minRows={1}
                                     value={opt.text}
                                     onChange={(e) => handleOptionChange(i, e.target.value)}
                                     margin="dense"
@@ -361,7 +338,7 @@ const MultipleChoiceForm = ({ question, onChange, readonly = false, index, field
                     fieldErrors={fieldErrors}
                     setFieldErrors={setFieldErrors}
                     readonly={readonly}
-                    suggestions={[1, 2, 5, 10]} // e.g. per type
+                    suggestions={[1, 2, 5, 10]}
                 />
             </CardContent>
         </Card >
