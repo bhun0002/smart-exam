@@ -1,7 +1,15 @@
 // src/student/StudentTakeExam/StudentTakeExam.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Box, Paper, CircularProgress, Typography, Grid, useMediaQuery, useTheme } from "@mui/material";
+import {
+  Box,
+  Paper,
+  CircularProgress,
+  Typography,
+  Grid,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import { db } from "../../firebaseConfig"; // adjust if your path differs
 import { doc, getDoc, serverTimestamp, updateDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "../../AuthContext"; // adjust path
@@ -221,7 +229,8 @@ const StudentTakeExam = () => {
           }
           setSubmissionId(existing.id);
           setStudentAnswers(existing.answers || {});
-          const durationTakenSoFar = (Date.now() - existing.startTime.toDate().getTime()) / 1000;
+          const durationTakenSoFar =
+            (Date.now() - existing.startTime.toDate().getTime()) / 1000;
           const remainingTime = examData.duration * 60 - durationTakenSoFar;
           if (remainingTime <= 0) {
             setSnackbarMessage("Your exam time has expired. Submitting now...");
@@ -325,10 +334,30 @@ const StudentTakeExam = () => {
   }, [loading, exam, submissionId, timeLeft]);
 
   useEffect(() => {
-    if (timeLeft === 0 && !loading && exam && submissionId && !submitDialogOpen && !finishEarlyDialogOpen) {
-      handleSubmitExam(submissionIdRef.current, examRef.current?.duration * 60, studentAnswersRef.current, 0);
+    if (
+      timeLeft === 0 &&
+      !loading &&
+      exam &&
+      submissionId &&
+      !submitDialogOpen &&
+      !finishEarlyDialogOpen
+    ) {
+      handleSubmitExam(
+        submissionIdRef.current,
+        examRef.current?.duration * 60,
+        studentAnswersRef.current,
+        0
+      );
     }
-  }, [timeLeft, loading, submitDialogOpen, finishEarlyDialogOpen, handleSubmitExam, exam, submissionId]);
+  }, [
+    timeLeft,
+    loading,
+    submitDialogOpen,
+    finishEarlyDialogOpen,
+    handleSubmitExam,
+    exam,
+    submissionId,
+  ]);
 
   const handleAnswerChange = useCallback((questionId, answer) => {
     setStudentAnswers((prev) => ({ ...prev, [questionId]: answer }));
@@ -352,7 +381,7 @@ const StudentTakeExam = () => {
 
   if (loading || isAuthLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="#f0f4f8">
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="#fff">
         <CircularProgress sx={{ color: "#673ab7" }} />
         <Typography variant="body1" sx={{ ml: 2, color: "#673ab7" }}>
           Loading exam...
@@ -363,7 +392,15 @@ const StudentTakeExam = () => {
 
   if (!exam || questions.length === 0) {
     return (
-      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="#f0f4f8" p={4}>
+      <Box
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+        bgcolor="#fff"
+        p={4}
+      >
         <Typography variant="h5" color="text.secondary" sx={{ mb: 2 }}>
           Exam not found or data missing.
         </Typography>
@@ -378,52 +415,56 @@ const StudentTakeExam = () => {
   const totalQuestions = questions.length;
 
   return (
+    // DESIGN-ONLY UPDATE: gradient background + elevated rounded Paper, matching Tutor form vibe
     <Box
       sx={{
-        background: "linear-gradient(135deg, #e8f5e9, #c8e6c9)",
         minHeight: "100vh",
+        background: "linear-gradient(135deg, #FFD1DC, #B2EBF2)",
         display: "flex",
         flexDirection: "column",
         py: { xs: 2, md: 4 },
-        px: { xs: 1, md: 2 },
+        px: 0,
       }}
     >
-      <Grid
-        container
-        spacing={3}
-        sx={{ width: "100%", margin: "0 auto", flexGrow: 1, height: "100%", alignItems: "flex-start", justifyContent: "center" }}
-      >
-        <Grid item xs={12} sm={12} md={12} sx={{ display: "flex", justifyContent: "center" }}>
           <Paper
-            elevation={6}
+            elevation={12}
             sx={{
-              width: "800px",
-              maxWidth: "100%",
-              borderRadius: "20px",
-              p: { xs: 2, md: 4 },
-              bgcolor: "#ffffff",
-              boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
-              height: "700px",
+              width: "100%",
+              minHeight: { xs: "auto", md: "80vh" },
+              borderRadius: "24px",
+              bgcolor: "#fff",
               display: "flex",
               flexDirection: "column",
+              overflow: "hidden",
             }}
           >
-            <ExamHeader
-              examTitle={exam.title}
-              timeLeft={timeLeft}
-              formatTime={formatTime}
-              progress={progress}
-              currentQuestionIndex={currentQuestionIndex}
-              totalQuestions={questions.length}
-              answeredCount={answeredCount}
-              questions={questions}
-              isQuestionAnswered={isQuestionAnswered}
-              studentAnswers={studentAnswers}
-              onBack={handleBackToList}
-              onSelectQuestion={setCurrentQuestionIndex}
-            />
+            {/* Header (kept same logic; light divider for structure) */}
+            <Box
+              sx={{
+                px: { xs: 2, md: 4 },
+                py: { xs: 1.5, md: 2 },
+                borderBottom: "1px solid #eee",
+                backgroundColor: "#ffffff",
+              }}
+            >
+              <ExamHeader
+                examTitle={exam.title}
+                timeLeft={timeLeft}
+                formatTime={formatTime}
+                progress={progress}
+                currentQuestionIndex={currentQuestionIndex}
+                totalQuestions={questions.length}
+                answeredCount={answeredCount}
+                questions={questions}
+                isQuestionAnswered={isQuestionAnswered}
+                studentAnswers={studentAnswers}
+                onBack={handleBackToList}
+                onSelectQuestion={setCurrentQuestionIndex}
+              />
+            </Box>
 
-            <Box sx={{ flexGrow: 1, overflowY: "auto" }}>
+            {/* Content (padding only; logic untouched) */}
+            <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 2, md: 3 }, backgroundColor: "#fff" }}>
               <StudentQuestionDisplay
                 question={currentQuestion}
                 index={currentQuestionIndex}
@@ -432,20 +473,29 @@ const StudentTakeExam = () => {
               />
             </Box>
 
-            <ExamFooter
-              isLastQuestion={currentQuestionIndex === questions.length - 1}
-              onPrev={() => currentQuestionIndex > 0 && setCurrentQuestionIndex((i) => i - 1)}
-              onNext={() =>
-                currentQuestionIndex < questions.length - 1 && setCurrentQuestionIndex((i) => i + 1)
-              }
-              onClear={handleClearResponse}
-              onOpenSubmit={() => setSubmitDialogOpen(true)}
-              onFinishEarly={() => setFinishEarlyDialogOpen(true)}
-              disablePrev={currentQuestionIndex === 0}
-            />
+            {/* Footer (kept logic; subtle top divider) */}
+            <Box
+              sx={{
+                px: { xs: 2, md: 4 },
+                py: { xs: 1.5, md: 2 },
+                borderTop: "1px solid #eee",
+                backgroundColor: "#ffffff",
+              }}
+            >
+              <ExamFooter
+                isLastQuestion={currentQuestionIndex === questions.length - 1}
+                onPrev={() => currentQuestionIndex > 0 && setCurrentQuestionIndex((i) => i - 1)}
+                onNext={() =>
+                  currentQuestionIndex < questions.length - 1 && setCurrentQuestionIndex((i) => i + 1)
+                }
+                onClear={handleClearResponse}
+                onOpenSubmit={() => setSubmitDialogOpen(true)}
+                onFinishEarly={() => setFinishEarlyDialogOpen(true)}
+                disablePrev={currentQuestionIndex === 0}
+              />
+            </Box>
           </Paper>
-        </Grid>
-      </Grid>
+     
 
       <SubmitDialog
         open={submitDialogOpen}

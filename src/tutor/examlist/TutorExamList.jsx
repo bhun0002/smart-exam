@@ -1,4 +1,3 @@
-// src/tutor/examlist/TutorExamList.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   collection,
@@ -12,17 +11,20 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
-import { Box, Snackbar } from "@mui/material";
+import { Box, Snackbar, Typography } from "@mui/material";
 import MuiAlert from "@mui/material/Alert";
 import { useNavigate } from "react-router-dom";
 
-import HeaderBar from "./components/HeaderBar";
+import TopBar from "./components/TopBar";
 import ExamsTable from "./components/ExamsTable";
 import ExamModal from "./components/ExamModal";
-import PaginationBar from "./components/PaginationBar";
-import FiltersBar from "./components/FiltersBar"; // ⬅️ NEW
+import PaginationBar from "../../shared/PaginationBar";
+import FiltersBar from "./components/FiltersBar";
 
 const PAGE_SIZE = 10;
+
+// treat true / "true" / 1 as deleted (compat for older data)
+const isDeletedTrue = (v) => v === true || v === "true" || v === 1;
 
 const TutorExamList = () => {
   const navigate = useNavigate();
@@ -35,11 +37,12 @@ const TutorExamList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
 
-  // NEW: extra filters
+  // filters
   const [intakeId, setIntakeId] = useState("all");
   const [availability, setAvailability] = useState("all"); // 'all'|'available'|'unavailable'
   const [hasPassword, setHasPassword] = useState("all");   // 'all'|'with'|'without'
-  const [minTotalPoints, setMinTotalPoints] = useState(""); // string or number
+  const [minTotalPoints, setMinTotalPoints] = useState(""); // '' | number-string
+  const [showDeleted, setShowDeleted] = useState(false);     // NEW
 
   // modal
   const [openModal, setOpenModal] = useState(false);
@@ -53,13 +56,8 @@ const TutorExamList = () => {
   const [tempExamPasswordError, setTempExamPasswordError] = useState("");
 
   // snackbar
-  const [snack, setSnack] = useState({
-    open: false,
-    msg: "",
-    severity: "success",
-  });
-  const closeSnack = (_, r) =>
-    r === "clickaway" ? null : setSnack((s) => ({ ...s, open: false }));
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const closeSnack = (_, r) => (r === "clickaway" ? null : setSnack((s) => ({ ...s, open: false })));
 
   // --- data fetch ---
   const fetchIntakes = useCallback(async () => {
@@ -71,38 +69,42 @@ const TutorExamList = () => {
   }, []);
 
   const fetchExams = useCallback(async () => {
-    const examsQuery = query(
-      collection(db, "exams"),
-      where("isDeleted", "==", 0),
-      orderBy("createdAt", "desc")
-    );
+    // fetch ALL, filter client-side on showDeleted
+    const examsQuery = query(collection(db, "exams"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(examsQuery);
     const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
     setExams(data);
   }, []);
 
-  useEffect(() => {
-    fetchIntakes();
-  }, [fetchIntakes]);
-
-  useEffect(() => {
-    if (Object.keys(intakes).length) fetchExams();
-  }, [intakes, fetchExams]);
+  useEffect(() => { fetchIntakes(); }, [fetchIntakes]);
+  useEffect(() => { if (Object.keys(intakes).length) fetchExams(); }, [intakes, fetchExams]);
 
   const refresh = async () => {
     await fetchIntakes();
     await fetchExams();
   };
 
+  // Active / Deleted counts (total, not filtered)
+  const counts = useMemo(() => {
+    let active = 0, deleted = 0;
+    exams.forEach((ex) => {
+      if (isDeletedTrue(ex.isDeleted)) deleted++;
+      else active++;
+    });
+    return { active, deleted };
+  }, [exams]);
+
   // --- filtered + paginated ---
   const filtered = useMemo(() => {
     const t = searchTerm.trim().toLowerCase();
     return exams
-      .map((ex) => ({
-        ...ex,
-        intakeName: intakes[ex.intakeId] || "Unknown Intake",
-      }))
+      .map((ex) => ({ ...ex, intakeName: intakes[ex.intakeId] || "Unknown Intake" }))
       .filter((ex) => {
+        // deleted filter
+        const del = isDeletedTrue(ex.isDeleted);
+        if (!showDeleted && del) return false; // Active
+        if (showDeleted && !del) return false; // Deleted
+
         // search by title OR intake name
         const searchOk =
           !t ||
@@ -130,21 +132,20 @@ const TutorExamList = () => {
         let pointsOk = true;
         if (minTotalPoints !== "" && !Number.isNaN(Number(minTotalPoints))) {
           const min = Number(minTotalPoints);
-          // prefer precomputed totalPoints if present; else compute on the fly
           const total =
             Number.isFinite(Number(ex.totalPoints))
               ? Number(ex.totalPoints)
               : (ex.questions || []).reduce((sum, q) => {
-                  const n = Number(q?.points);
-                  return sum + (Number.isFinite(n) ? n : 0);
-                }, 0);
+                const n = Number(q?.points);
+                return sum + (Number.isFinite(n) ? n : 0);
+              }, 0);
 
           pointsOk = Number.isFinite(total) && total >= min;
         }
 
         return searchOk && intakeOk && availOk && passwordOk && pointsOk;
       });
-  }, [exams, intakes, searchTerm, intakeId, availability, hasPassword, minTotalPoints]);
+  }, [exams, intakes, searchTerm, intakeId, availability, hasPassword, minTotalPoints, showDeleted]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = useMemo(
@@ -158,6 +159,7 @@ const TutorExamList = () => {
     setAvailability("all");
     setHasPassword("all");
     setMinTotalPoints("");
+    setShowDeleted(false);         // NEW
     setPage(1);
   };
 
@@ -190,13 +192,13 @@ const TutorExamList = () => {
 
   // --- actions ---
   const softDeleteExam = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this exam?")) return;
+    if (!window.confirm("Move this exam to trash?")) return;
     try {
       await updateDoc(doc(db, "exams", id), {
-        isDeleted: 1,
+        isDeleted: 1, // soft delete
         updatedAt: serverTimestamp(),
       });
-      setSnack({ open: true, msg: "Exam soft-deleted.", severity: "success" });
+      setSnack({ open: true, msg: "Exam moved to trash.", severity: "success" });
       await fetchExams();
     } catch (e) {
       console.error(e);
@@ -204,13 +206,23 @@ const TutorExamList = () => {
     }
   };
 
+  const restoreExam = async (id) => {
+    try {
+      await updateDoc(doc(db, "exams", id), {
+        isDeleted: 0, // restore
+        updatedAt: serverTimestamp(),
+      });
+      setSnack({ open: true, msg: "Exam restored.", severity: "success" });
+      await fetchExams();
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "Failed to restore.", severity: "error" });
+    }
+  };
+
   const toggleAvailability = (examId, current) => {
     if (editAvailabilityForExamId && editAvailabilityForExamId !== examId) {
-      setSnack({
-        open: true,
-        msg: "Finish the current availability action first.",
-        severity: "warning",
-      });
+      setSnack({ open: true, msg: "Finish the current availability action first.", severity: "warning" });
       return;
     }
     if (!current) {
@@ -237,11 +249,7 @@ const TutorExamList = () => {
       }
       if (p.length < 6) {
         setTempExamPasswordError("Password must be at least 6 characters.");
-        setSnack({
-          open: true,
-          msg: "Password must be at least 6 characters.",
-          severity: "error",
-        });
+        setSnack({ open: true, msg: "Password must be at least 6 characters.", severity: "error" });
         return;
       }
       password = p;
@@ -279,12 +287,8 @@ const TutorExamList = () => {
 
   return (
     <Box sx={{ p: 4, bgcolor: "#f7f5f2", minHeight: "100vh" }}>
-      <HeaderBar
-        onBack={() => navigate("/tutor-dashboard")}
-        onCreate={handleCreate}
-      />
+      <TopBar onBack={() => navigate("/tutor-dashboard")} onCreate={handleCreate} />
 
-      {/* NEW: FiltersBar (Intake + Availability + a second Search if you want it) */}
       <FiltersBar
         loading={false}
         intakesMap={intakes}
@@ -298,6 +302,10 @@ const TutorExamList = () => {
         setHasPassword={(v) => { setHasPassword(v); setPage(1); }}
         minTotalPoints={minTotalPoints}
         setMinTotalPoints={(v) => { setMinTotalPoints(v); setPage(1); }}
+        showDeleted={showDeleted}                               // NEW
+        setShowDeleted={(v) => { setShowDeleted(v); setPage(1); }} // NEW
+        activeCount={counts.active}
+        deletedCount={counts.deleted}
         onReset={handleResetFilters}
       />
 
@@ -312,11 +320,19 @@ const TutorExamList = () => {
         onTogglePasswordVisibility={togglePasswordVisibility}
         onView={handleView}
         onEdit={handleEdit}
-        onDelete={softDeleteExam}
+        onSoftDelete={softDeleteExam}     // NEW
+        onRestore={restoreExam}           // NEW
         onToggleAvailability={toggleAvailability}
         onConfirmAvailability={confirmAvailabilityChange}
         onCancelAvailability={cancelAvailabilityEdit}
+        showingDeleted={showDeleted}      // NEW
       />
+
+      <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+        Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+        –
+        {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+      </Typography>
 
       <PaginationBar
         page={page}
@@ -325,12 +341,7 @@ const TutorExamList = () => {
         onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
       />
 
-      <ExamModal
-        open={openModal}
-        exam={selectedExam}
-        isEditing={isEditing}
-        onClose={closeModalAndRefresh}
-      />
+      <ExamModal open={openModal} exam={selectedExam} isEditing={isEditing} onClose={closeModalAndRefresh} />
 
       <Snackbar
         open={snack.open}
@@ -345,11 +356,9 @@ const TutorExamList = () => {
           variant="filled"
           sx={{
             backgroundColor:
-              snack.severity === "error"
-                ? "#ef5350"
-                : snack.severity === "warning"
-                ? "#ffb74d"
-                : "#81c784",
+              snack.severity === "error" ? "#ef5350"
+                : snack.severity === "warning" ? "#ffb74d"
+                  : "#81c784",
             fontWeight: "bold",
             borderRadius: "8px",
           }}

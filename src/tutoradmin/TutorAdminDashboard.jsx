@@ -80,14 +80,10 @@ const TutorAdminDashboard = () => {
                             </Button>
                         )}
                         <Button
-                            variant="contained"
-                            startIcon={<LogoutIcon />}
+                            color="inherit"
                             onClick={handleLogout}
-                            sx={{
-                                backgroundColor: '#e57373', color: '#fff', borderRadius: '12px', fontWeight: 'bold',
-                                '&:hover': { backgroundColor: '#ef5350', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' },
-                                transition: 'all 0.3s ease-in-out',
-                            }}
+                            sx={{ color: '#e57373' }}
+                            startIcon={<LogoutIcon />}
                         >
                             Logout
                         </Button>
@@ -104,7 +100,7 @@ const TutorAdminDashboard = () => {
                     fontWeight="bold"
                     sx={{ mb: 2, mt: 4, color: "#37474f" }}
                 >
-                    Tutor Administration
+                    Tutor Dashboard
                 </Typography>
                 <Typography
                     variant="h6"
@@ -112,7 +108,7 @@ const TutorAdminDashboard = () => {
                     color="text.secondary"
                     sx={{ mb: 6 }}
                 >
-                    Overview and management of tutor accounts.
+                    Centralized management for tutor accounts.
                 </Typography>
 
                 <Grid container spacing={4} justifyContent="center" alignItems="stretch">
@@ -139,10 +135,10 @@ const TutorAdminDashboard = () => {
                                     <GroupIcon /> {/* Icon for managing tutors */}
                                 </IconButton>
                                 <Typography variant="h5" fontWeight="bold" color="text.primary">
-                                    Manage Tutors
+                                    Tutor Management
                                 </Typography>
                                 <Typography variant="body2" align="center" color="text.secondary">
-                                    Add, edit, approve, and delete tutor accounts.
+                                    Create and organize tutor accounts.
                                 </Typography>
                             </CardContent>
                             <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
@@ -158,7 +154,7 @@ const TutorAdminDashboard = () => {
                                         py: 1.5,
                                     }}
                                 >
-                                    Go to Management
+                                    Manage Tutor
                                 </Button>
                             </Box>
                         </Card>

@@ -1,12 +1,13 @@
-// src/tutor/examlist/components/HeaderBar.jsx
+// src/tutor/examlist/components/TopBar.jsx
 import React from "react";
 import { Box, Button, Typography } from "@mui/material";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import {
   ArrowBack as ArrowBackIcon,
   Add as AddIcon,
 } from "@mui/icons-material";
 
-const HeaderBar = ({ onBack, onCreate }) => {
+const TopBar = ({ onBack, onCreate }) => {
   const buttonStyle = {
     borderColor: "#4A90E2",
     color: "#4A90E2",
@@ -38,19 +39,12 @@ const HeaderBar = ({ onBack, onCreate }) => {
         Back to Dashboard
       </Button>
 
-      {/* Title */}
-      <Typography
-        variant="h4"
-        sx={{
-          color: "#5d5c61",
-          flexGrow: 1,
-          textAlign: "center",
-          fontWeight: 700,
-          letterSpacing: 0.2,
-        }}
-      >
-        Exams List
-      </Typography>
+      <Box sx={{ flex: 1, textAlign: "center" }}>
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: "#1A237E", display: "inline-flex", gap: 1, alignItems: "center" }}>
+          <FormatListBulletedIcon sx={{ fontSize: 28 }} />
+          Exams List
+        </Typography>
+      </Box>
 
       {/* Add Exam — now matches Back button style */}
       <Button
@@ -65,4 +59,4 @@ const HeaderBar = ({ onBack, onCreate }) => {
   );
 };
 
-export default HeaderBar;
+export default TopBar;

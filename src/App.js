@@ -17,16 +17,17 @@ import TutorLogDetail from "./tutor/logs/TutorLogDetail";
 // Admin Components
 import AdminForm from "./admin/AdminForm"; // To be used for a registration route
 import AdminDashboard from "./admin/AdminDashboard";
-import ManageAdmins from './admin/ManageAdmins';
-import ManageIntakes from './admin/ManageIntakes';
+import ManageAdmins from './admin/ManageAdmin/ManageAdmins';
+import ManageIntakes from './admin/AdminManageIntakes/ManageIntakes';
 import AdminLogin from "./admin/AdminLogin";
 import ProtectedRoute from "./ProtectedRoute";
+import AdminDocManager from "./admin/AdminDocManager/AdminDocManager";
 
 // Tutor Admin Components
 import TutorAdminLogin from "./tutoradmin/TutorAdminLogin";
 import TutorAdminDashboard from "./tutoradmin/TutorAdminDashboard";
 import TutorAdminLandingPage from "./tutoradmin/TutorAdminLandingPage";
-import ManageTutorAdmin from './tutoradmin/ManageTutorAdmin';
+import ManageTutorAdmin from './tutoradmin/ManageTutorAdmin/ManageTutorAdmin';
 
 // Student Components
 import StudentLogin from "./student/StudentLogin";
@@ -130,6 +131,15 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin-manage-docs"
+          element={
+            <ProtectedRoute requiredRole="masterAdmin">
+              <AdminDocManager />
+            </ProtectedRoute>
+          }
+        />
+        
         {/* Tutor Admin Routes */}
         {/* Landing Page Route */}
         <Route path="/" element={<TutorAdminLandingPage />} />

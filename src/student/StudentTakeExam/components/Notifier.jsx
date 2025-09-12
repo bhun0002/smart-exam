@@ -1,5 +1,10 @@
+// src/student/StudentTakeExam/components/Notifier.jsx
 import React from "react";
-import { Snackbar, Alert as MuiAlert } from "@mui/material";
+import { Snackbar, Alert as MuiAlert, Slide } from "@mui/material";
+
+function SlideUpTransition(props) {
+  return <Slide {...props} direction="up" />;
+}
 
 const Notifier = ({ open, onClose, severity, message }) => (
   <Snackbar
@@ -7,6 +12,7 @@ const Notifier = ({ open, onClose, severity, message }) => (
     autoHideDuration={4000}
     onClose={onClose}
     anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+    TransitionComponent={SlideUpTransition}
   >
     <MuiAlert
       onClose={onClose}
@@ -14,10 +20,20 @@ const Notifier = ({ open, onClose, severity, message }) => (
       elevation={6}
       variant="filled"
       sx={{
-        backgroundColor:
-          severity === "error" ? "#ef5350" : severity === "info" ? "#2196f3" : "#81c784",
+        borderRadius: "12px",
         fontWeight: "bold",
-        borderRadius: "8px",
+        px: 2,
+        py: 1,
+        bgcolor:
+          severity === "error"
+            ? "#e53935"
+            : severity === "info"
+            ? "#1e88e5"
+            : severity === "warning"
+            ? "#fbc02d"
+            : "#43a047",
+        color: "#fff",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
       }}
     >
       {message}

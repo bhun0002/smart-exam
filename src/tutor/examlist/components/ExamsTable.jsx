@@ -6,7 +6,7 @@ import {
 import {
   Visibility as VisibilityIcon, Edit as EditIcon, Delete as DeleteIcon,
   Key as KeyIcon, CheckCircleOutline as CheckCircleOutlineIcon, Block as BlockIcon,
-  ContentCopy as ContentCopyIcon
+  ContentCopy as ContentCopyIcon, Restore as RestoreIcon
 } from "@mui/icons-material";
 
 const copyToClipboard = async (text, onResult) => {
@@ -28,9 +28,12 @@ const computeTotalPoints = (questions = []) =>
     return sum + (Number.isFinite(n) ? n : 0);
   }, 0);
 
+// Deleted flag helper (compat)
+const isDeletedTrue = (v) => v === true || v === "true" || v === 1;
+
 // Tiered chip styling
 const getPointsChipStyle = (pts) => {
-  if (!Number.isFinite(pts)) return { bgcolor: "#fff3e0", color: "#e65100" }; // warning style
+  if (!Number.isFinite(pts)) return { bgcolor: "#fff3e0", color: "#e65100" };
   if (pts >= 80) return { bgcolor: "#e8f5e9", color: "#1b5e20" };
   if (pts >= 40) return { bgcolor: "#e3f2fd", color: "#0d47a1" };
   return { bgcolor: "#f3e5f5", color: "#4a148c" };
@@ -47,10 +50,12 @@ const ExamsTable = ({
   onTogglePasswordVisibility,
   onView,
   onEdit,
-  onDelete,
+  onSoftDelete,            // NEW
+  onRestore,               // NEW
   onToggleAvailability,
   onConfirmAvailability,
   onCancelAvailability,
+  showingDeleted,          // NEW
 }) => {
   return (
     <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
@@ -74,25 +79,16 @@ const ExamsTable = ({
               <TableCell colSpan={8} align="center">No exams found</TableCell>
             </TableRow>
           ) : rows.map((exam) => {
-              // 1) Prefer saved totalPoints
-              const savedTotal = Number.isFinite(Number(exam.totalPoints))
-                ? Number(exam.totalPoints)
-                : null;
+              const del = isDeletedTrue(exam.isDeleted);
 
-              // 2) Fallback compute (older records)
+              // prefer saved total; fallback compute
+              const savedTotal = Number.isFinite(Number(exam.totalPoints)) ? Number(exam.totalPoints) : null;
               const fallbackHasInvalid = hasInvalidPoints(exam.questions);
               const fallbackTotal = fallbackHasInvalid ? null : computeTotalPoints(exam.questions);
-
-              const displayTotal = savedTotal ?? fallbackTotal; // what we show
-              const chipStyle = getPointsChipStyle(
-                Number.isFinite(displayTotal) ? displayTotal : NaN
-              );
-
-              // 3) Consistency check (optional): if both exist and differ, warn
+              const displayTotal = savedTotal ?? fallbackTotal;
+              const chipStyle = getPointsChipStyle(Number.isFinite(displayTotal) ? displayTotal : NaN);
               const mismatch =
-                Number.isFinite(savedTotal) &&
-                Number.isFinite(fallbackTotal) &&
-                savedTotal !== fallbackTotal;
+                Number.isFinite(savedTotal) && Number.isFinite(fallbackTotal) && savedTotal !== fallbackTotal;
 
               const totalCell =
                 displayTotal == null ? (
@@ -103,43 +99,29 @@ const ExamsTable = ({
                         : "Points missing/invalid on questions. Open the exam to fix."
                     }
                   >
-                    <Chip
-                      label="N/A"
-                      size="small"
-                      sx={{ fontWeight: "bold", borderRadius: "8px", ...chipStyle }}
-                    />
+                    <Chip label="N/A" size="small" sx={{ fontWeight: "bold", borderRadius: "8px", ...chipStyle }} />
                   </Tooltip>
                 ) : mismatch ? (
-                  <Tooltip title={`Saved: ${savedTotal} pts • Recomputed: ${fallbackTotal} pts. Re-open and save to sync.`}>
+                  <Tooltip title={`Saved: ${savedTotal} • Recomputed: ${fallbackTotal}. Re-open and save to sync.`}>
                     <Chip
                       label={`${displayTotal} pts ⚠`}
                       size="small"
-                      sx={{
-                        fontWeight: "bold",
-                        borderRadius: "8px",
-                        bgcolor: "#fff3e0",
-                        color: "#e65100",
-                      }}
+                      sx={{ fontWeight: "bold", borderRadius: "8px", bgcolor: "#fff3e0", color: "#e65100" }}
                     />
                   </Tooltip>
                 ) : (
-                  <Chip
-                    label={`${displayTotal} pts`}
-                    size="small"
-                    sx={{ fontWeight: "bold", borderRadius: "8px", ...chipStyle }}
-                  />
+                  <Chip label={`${displayTotal} pts`} size="small" sx={{ fontWeight: "bold", borderRadius: "8px", ...chipStyle }} />
                 );
 
               return (
                 <React.Fragment key={exam.id}>
                   <TableRow sx={{ "&:hover": { bgcolor: "#f1f1f1" } }}>
                     <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                         <Avatar
                           sx={{
                             bgcolor: "#BBDEFB",
                             color: "#1A237E",
-                            mr: 2,
                             width: 32,
                             height: 32,
                             fontSize: "0.9rem",
@@ -147,7 +129,10 @@ const ExamsTable = ({
                         >
                           {exam.title?.charAt(0) || "E"}
                         </Avatar>
-                        {exam.title}
+                        <Box>
+                          <Typography sx={{ fontWeight: 600 }}>{exam.title}</Typography>
+                          {del && <Chip label="Deleted" size="small" color="warning" sx={{ mt: 0.5, borderRadius: "8px" }} />}
+                        </Box>
                       </Box>
                     </TableCell>
 
@@ -177,20 +162,12 @@ const ExamsTable = ({
                           <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
                             {showPasswordForExamId === exam.id ? exam.examPassword : "********"}
                           </Typography>
-                          <IconButton
-                            size="small"
-                            onClick={() => onTogglePasswordVisibility(exam.id)}
-                            color="info"
-                          >
+                          <IconButton size="small" onClick={() => onTogglePasswordVisibility(exam.id)} color="info">
                             <KeyIcon fontSize="small" />
                           </IconButton>
                           <IconButton
                             size="small"
-                            onClick={() =>
-                              copyToClipboard(exam.examPassword, (ok) => {
-                                if (!ok) alert("Copy failed. Please copy manually.");
-                              })
-                            }
+                            onClick={() => copyToClipboard(exam.examPassword, (ok) => { if (!ok) alert("Copy failed."); })}
                             color="primary"
                           >
                             <ContentCopyIcon fontSize="small" />
@@ -201,61 +178,72 @@ const ExamsTable = ({
                       )}
                     </TableCell>
 
-                    {/* Total Points (saved-first, tooltip, mismatch warning) */}
                     <TableCell>{totalCell}</TableCell>
 
                     <TableCell>
                       {exam.createdAt
-                        ? new Date(
-                            (exam.createdAt.seconds ?? 0) * 1000
-                          ).toLocaleDateString()
+                        ? new Date((exam.createdAt.seconds ?? 0) * 1000).toLocaleDateString()
                         : "-"}
                     </TableCell>
 
                     <TableCell>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        sx={{ mr: 1, borderRadius: "8px" }}
-                        onClick={() => onView(exam)}
-                        startIcon={<VisibilityIcon />}
-                      >
-                        View
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        sx={{ mr: 1, borderColor: "#ffc107", color: "#ffc107", borderRadius: "8px" }}
-                        onClick={() => onEdit(exam)}
-                        startIcon={<EditIcon />}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color={exam.isAvailable ? "error" : "success"}
-                        onClick={() => onToggleAvailability(exam.id, exam.isAvailable)}
-                        startIcon={exam.isAvailable ? <BlockIcon /> : <CheckCircleOutlineIcon />}
-                        sx={{ mr: 1, borderRadius: "8px" }}
-                        disabled={!!editAvailabilityForExamId && editAvailabilityForExamId !== exam.id}
-                      >
-                        {exam.isAvailable ? "Mark Unavailable" : "Mark Available"}
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="error"
-                        onClick={() => onDelete(exam.id)}
-                        startIcon={<DeleteIcon />}
-                        sx={{ borderRadius: "8px" }}
-                      >
-                        Delete
-                      </Button>
+                      {del || showingDeleted ? (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<RestoreIcon />}
+                          onClick={() => onRestore(exam.id)}
+                          sx={{ borderRadius: "8px", borderColor: "#81C784", color: "#1B5E20" }}
+                        >
+                          Restore
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            sx={{ mr: 1, borderRadius: "8px" }}
+                            onClick={() => onView(exam)}
+                            startIcon={<VisibilityIcon />}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            sx={{ mr: 1, borderColor: "#ffc107", color: "#ffc107", borderRadius: "8px" }}
+                            onClick={() => onEdit(exam)}
+                            startIcon={<EditIcon />}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color={exam.isAvailable ? "error" : "success"}
+                            onClick={() => onToggleAvailability(exam.id, exam.isAvailable)}
+                            startIcon={exam.isAvailable ? <BlockIcon /> : <CheckCircleOutlineIcon />}
+                            sx={{ mr: 1, borderRadius: "8px" }}
+                            disabled={!!editAvailabilityForExamId && editAvailabilityForExamId !== exam.id}
+                          >
+                            {exam.isAvailable ? "Mark Unavailable" : "Mark Available"}
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            onClick={() => onSoftDelete(exam.id)}
+                            startIcon={<DeleteIcon />}
+                            sx={{ borderRadius: "8px" }}
+                          >
+                            Delete
+                          </Button>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
 
-                  {editAvailabilityForExamId === exam.id && (
+                  {editAvailabilityForExamId === exam.id && !del && (
                     <TableRow>
                       <TableCell colSpan={8}>
                         <Box
@@ -269,9 +257,7 @@ const ExamsTable = ({
                             flexWrap: "wrap",
                           }}
                         >
-                          <Typography variant="body2">
-                            Enter password to make exam available:
-                          </Typography>
+                          <Typography variant="body2">Enter password to make exam available:</Typography>
                           <TextField
                             autoFocus
                             size="small"
@@ -297,12 +283,7 @@ const ExamsTable = ({
                           >
                             Confirm
                           </Button>
-                          <Button
-                            variant="outlined"
-                            color="secondary"
-                            onClick={onCancelAvailability}
-                            sx={{ borderRadius: "8px" }}
-                          >
+                          <Button variant="outlined" color="secondary" onClick={onCancelAvailability} sx={{ borderRadius: "8px" }}>
                             Cancel
                           </Button>
                         </Box>

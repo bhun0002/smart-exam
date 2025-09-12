@@ -1,4 +1,3 @@
-// src/tutor/examlist/components/FiltersBar.jsx
 import React from "react";
 import {
   Box,
@@ -6,6 +5,10 @@ import {
   InputAdornment,
   MenuItem,
   Button,
+  FormControlLabel,
+  Switch,
+  Chip,
+  Stack,
 } from "@mui/material";
 import { Search as SearchIcon, Refresh as RefreshIcon } from "@mui/icons-material";
 
@@ -20,7 +23,11 @@ const FiltersBar = ({
   hasPassword, setHasPassword,     // 'all' | 'with' | 'without'
   minTotalPoints, setMinTotalPoints, // number | '' (string when empty)
 
-  onReset,                         // () => void
+  // NEW
+  showDeleted, setShowDeleted,
+  activeCount = 0, deletedCount = 0,   // << counts to display
+
+  onReset,
 }) => {
   const intakeOptions = Object.entries(intakesMap); // [[id, name], ...]
 
@@ -28,7 +35,11 @@ const FiltersBar = ({
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1.2fr 1fr 1fr 1fr 0.7fr auto" },
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "1fr 1fr",
+          md: "1.2fr 1fr 1fr 1fr 0.9fr auto",
+        },
         gap: 2,
         p: 2,
         mb: 2,
@@ -37,7 +48,7 @@ const FiltersBar = ({
         border: "1px solid #ffe0b2",
       }}
     >
-      {/* Search by title (standard size) */}
+      {/* Search by title */}
       <TextField
         label="Search by title"
         fullWidth
@@ -55,7 +66,7 @@ const FiltersBar = ({
         disabled={loading}
       />
 
-      {/* Intake (TextField select for consistent sizing) */}
+      {/* Intake */}
       <TextField
         select
         fullWidth
@@ -67,9 +78,7 @@ const FiltersBar = ({
       >
         <MenuItem value="all">All</MenuItem>
         {intakeOptions.map(([id, name]) => (
-          <MenuItem key={id} value={id}>
-            {name}
-          </MenuItem>
+          <MenuItem key={id} value={id}>{name}</MenuItem>
         ))}
       </TextField>
 
@@ -114,17 +123,45 @@ const FiltersBar = ({
         InputProps={{ sx: { borderRadius: "12px" } }}
       />
 
-      {/* Reset */}
-      <Box sx={{ display: "flex", justifyContent: { xs: "stretch", md: "flex-end" } }}>
-        <Button
+      {/* Toggle + counts + Reset */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: { xs: "stretch", md: "flex-end" },
+          alignItems: "center",
+          gap: 1,
+          flexWrap: "wrap",
+        }}
+      >
+        <FormControlLabel
+          control={<Switch checked={!!showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />}
+          label="Show deleted"
+        />
+
+        {/* NEW: small count badge right next to the toggle */}
+        <Chip
+          label={`${activeCount} Active | ${deletedCount} Deleted`}
+          size="small"
           variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={onReset}
-          disabled={loading}
-          sx={{ borderRadius: "12px", whiteSpace: "nowrap", height: "100%" }}
-        >
-          Reset
-        </Button>
+          sx={{ borderRadius: "8px" }}
+        />
+
+        <Stack direction="row" gap={1} alignItems="center">
+          <Chip
+            label={showDeleted ? "Deleted" : "Active"}
+            color={showDeleted ? "warning" : "default"}
+            sx={{ fontWeight: "bold", borderRadius: "8px" }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={onReset}
+            disabled={loading}
+            sx={{ borderRadius: "12px", whiteSpace: "nowrap", height: "100%" }}
+          >
+            Reset
+          </Button>
+        </Stack>
       </Box>
     </Box>
   );

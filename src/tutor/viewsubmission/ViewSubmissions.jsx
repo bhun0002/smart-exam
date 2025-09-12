@@ -2,13 +2,14 @@ import React, { useMemo, useState, useCallback } from "react";
 import { Box, Typography, Paper, Button, Snackbar, Alert as MuiAlert } from "@mui/material";
 import { db } from "../../firebaseConfig";
 import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
-import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
+import TopBar from "./components/TopBar";
 import { useNavigate } from "react-router-dom";
 import FiltersBar from "./components/FiltersBar";
 import SubmissionTable from "./components/SubmissionTable";
 import SubmissionDrawer from "./components/SubmissionDrawer";
 import GradingModal from "./components/GradingModal";
 import useSubmissions from "./hooks/useSubmissions";
+import PaginationBar from "../../shared/PaginationBar";
 
 const ViewSubmissions = () => {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ const ViewSubmissions = () => {
   const [intakeIdFilter, setIntakeIdFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("submitted"); // submitted | inprogress | all
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const PAGE_SIZE = 10;
 
   // snackbar
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
@@ -123,8 +124,20 @@ const ViewSubmissions = () => {
     });
   }, [submissions, search, examsMap, intakesMap, intakeIdFilter, examIdFilter, statusFilter, gradingFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  );
+
+  const handleResetFilters = () => {
+    setSearch("");
+    setExamIdFilter("all");
+    setIntakeIdFilter("all");
+    setStatusFilter("submitted");
+    setGradingFilter("all");
+    setPage(1);
+  };
 
   // actions
   const handleViewDetails = (row) => {
@@ -151,50 +164,11 @@ const ViewSubmissions = () => {
 
   return (
     <Box sx={{ padding: 4, bgcolor: "#f7f5f2", minHeight: "100vh" }}>
-      {/* header bar (matching TutorExamList style) */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 4,
-          flexWrap: "wrap",
-          gap: 2,
-        }}
-      >
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate("/tutor-dashboard")}
-          sx={{
-            borderColor: "#4A90E2",
-            color: "#4A90E2",
-            borderRadius: "12px",
-            fontWeight: "bold",
-            "&:hover": { backgroundColor: "#E3F2FD" },
-          }}
-        >
-          Back to Dashboard
-        </Button>
-
-        <Typography variant="h4" sx={{ color: "#5d5c61", flexGrow: 1, textAlign: "center" }}>
-          View Submissions
-        </Typography>
-
-        <Button
-          variant="contained"
-          sx={{
-            bgcolor: "#a8dadc",
-            color: "#1d3557",
-            "&:hover": { bgcolor: "#81c0c2" },
-            borderRadius: "12px",
-          }}
-          onClick={refresh}
-        >
-          Refresh
-        </Button>
-      </Box>
-
+      <TopBar
+        title="View Submissions"
+        onBack={() => navigate("/tutor-dashboard")}
+        onRefresh={refresh}
+      />
       <Paper elevation={3} sx={{ p: 2, mb: 2, borderRadius: "12px" }}>
         <FiltersBar
           loading={loading}
@@ -208,25 +182,15 @@ const ViewSubmissions = () => {
           setIntakeId={setIntakeIdFilter}
           status={statusFilter}
           setStatus={setStatusFilter}
-          grading={gradingFilter} 
+          grading={gradingFilter}
           setGrading={setGradingFilter}
-          reset={() => {
-            setSearch(""); 
-            setExamIdFilter("all"); 
-            setIntakeIdFilter("all"); 
-            setStatusFilter("submitted"); 
-            setGradingFilter("all"); 
-            setPage(1);
-          }}
+          onReset={handleResetFilters}
         />
       </Paper>
 
       <SubmissionTable
         loading={loading}
         rows={pageItems}
-        page={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
         examsMap={examsMap}
         intakesMap={intakesMap}
         onView={handleViewDetails}
@@ -245,6 +209,17 @@ const ViewSubmissions = () => {
             ? intakesMap[examsMap[selectedSubmission.examId].intakeId]
             : ""
         }
+      />
+      <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+        Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+        –
+        {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+      </Typography>
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
       />
       <GradingModal
         open={openGrade}

@@ -12,19 +12,19 @@ import {
     Toolbar,
 } from "@mui/material";
 import LogoutIcon from '@mui/icons-material/Logout';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'; // Icon for admin management
-import SchoolIcon from '@mui/icons-material/School'; // Icon for intake management
-import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount'; // Icon for Tutor Admin Panel
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import SchoolIcon from '@mui/icons-material/School';
+import DescriptionIcon from '@mui/icons-material/Description'; // 📄 For document management
 import { useAuth } from "../AuthContext";
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
-    const { logout, user } = useAuth(); // Assuming 'user' contains role information
+    const { logout, user } = useAuth();
 
     const cardStyles = [
-        { backgroundColor: "#FFF5E1", hover: "#FFEBCC", iconColor: "#F39C12" }, // Admin Management - Soft Yellow
-        { backgroundColor: "#E1F5FE", hover: "#B3E5FC", iconColor: "#3498DB" }, // Intake Management - Soft Blue
-        { backgroundColor: "#E0FFD1", hover: "#CCFFB3", iconColor: "#4CAF50" }, // Go to Tutor Panel - Soft Green
+        { backgroundColor: "#FFF5E1", hover: "#FFEBCC", iconColor: "#F39C12" }, // Admin Management
+        { backgroundColor: "#E1F5FE", hover: "#B3E5FC", iconColor: "#3498DB" }, // Intake Management
+        { backgroundColor: "#F3E5F5", hover: "#E1BEE7", iconColor: "#8E24AA" }, // Document Management
     ];
 
     const handleLogout = () => {
@@ -32,20 +32,15 @@ const AdminDashboard = () => {
         navigate("/admin-login");
     };
 
-    const handleTutorPanelRedirect = () => {
-        navigate("/tutor-admin-dashboard");
-    };
-
     return (
         <Box
             sx={{
-                background: 'linear-gradient(135deg, #FFDDC1, #C1FFD7)', // Master Admin Gradient
+                background: 'linear-gradient(135deg, #FFDDC1, #C1FFD7)',
                 minHeight: "100vh",
                 display: "flex",
                 flexDirection: "column",
             }}
         >
-            {/* Top AppBar */}
             <AppBar
                 position="static"
                 elevation={0}
@@ -74,7 +69,6 @@ const AdminDashboard = () => {
                 </Toolbar>
             </AppBar>
 
-            {/* Main Content Box */}
             <Box sx={{ flexGrow: 1, p: { xs: 2, md: 4 } }}>
                 <Typography
                     variant="h3"
@@ -91,11 +85,11 @@ const AdminDashboard = () => {
                     color="text.secondary"
                     sx={{ mb: 6 }}
                 >
-                    Centralized management for administrators, intakes, and tutor panels.
+                    Centralized management for administrators, intakes, documents, and tutor panels.
                 </Typography>
 
                 <Grid container spacing={4} justifyContent="center" alignItems="stretch">
-                    {/* Admin Management Card */}
+                    {/* Admin Management */}
                     <Grid item xs={12} sm={6} md={4}>
                         <Card
                             elevation={6}
@@ -141,7 +135,7 @@ const AdminDashboard = () => {
                         </Card>
                     </Grid>
 
-                    {/* Intake Management Card */}
+                    {/* Intake Management */}
                     <Grid item xs={12} sm={6} md={4}>
                         <Card
                             elevation={6}
@@ -182,6 +176,52 @@ const AdminDashboard = () => {
                                     }}
                                 >
                                     Manage Intakes
+                                </Button>
+                            </Box>
+                        </Card>
+                    </Grid>
+
+                    {/* Document Management */}
+                    <Grid item xs={12} sm={6} md={4}>
+                        <Card
+                            elevation={6}
+                            sx={{
+                                borderRadius: '16px',
+                                bgcolor: cardStyles[2].backgroundColor,
+                                transition: "0.3s",
+                                "&:hover": {
+                                    bgcolor: cardStyles[2].hover,
+                                    transform: "translateY(-8px)",
+                                    boxShadow: '0 10px 20px rgba(0,0,0,0.15)',
+                                },
+                                display: 'flex',
+                                flexDirection: 'column',
+                                height: '100%',
+                            }}
+                        >
+                            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, p: 4 }}>
+                                <DescriptionIcon sx={{ fontSize: 60, color: cardStyles[2].iconColor, mb: 1 }} />
+                                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                                    Document Management
+                                </Typography>
+                                <Typography variant="body2" align="center" color="text.secondary">
+                                    Define required student documents and upload reference files for them.
+                                </Typography>
+                            </CardContent>
+                            <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => navigate("/admin-manage-docs")}
+                                    sx={{
+                                        bgcolor: cardStyles[2].iconColor,
+                                        '&:hover': { bgcolor: '#6A1B9A' },
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        borderRadius: '12px',
+                                        py: 1.5,
+                                    }}
+                                >
+                                    Manage Documents
                                 </Button>
                             </Box>
                         </Card>

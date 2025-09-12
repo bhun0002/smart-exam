@@ -12,7 +12,7 @@ import {
   Toolbar,
   IconButton,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
+import BallotIcon from "@mui/icons-material/Ballot";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PeopleIcon from "@mui/icons-material/People";
@@ -128,7 +128,7 @@ const TutorDashboard = () => {
                 <IconButton
                   sx={{ bgcolor: cardStyles[0].iconColor, color: "#fff", mb: 1 }}
                 >
-                  <AddIcon />
+                  <BallotIcon />
                 </IconButton>
                 <Typography variant="h5" fontWeight="bold" color="text.primary">
                   Create a New Exam

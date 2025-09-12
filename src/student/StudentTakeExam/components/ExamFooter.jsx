@@ -1,3 +1,4 @@
+// src/student/StudentTakeExam/components/ExamFooter.jsx
 import React from "react";
 import { Box, Button } from "@mui/material";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
@@ -22,7 +23,7 @@ const ExamFooter = ({
         alignItems="center"
         flexWrap="wrap"
         gap={2}
-        sx={{ mt: "auto", pt: 2, borderTop: "1px solid #eee" }}
+        sx={{ mt: "auto", pt: 2 }}
       >
         <Button
           variant="outlined"

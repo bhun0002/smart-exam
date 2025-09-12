@@ -14,7 +14,7 @@ import {
 } from "firebase/firestore";
 import axios from "axios";
 
-import HeaderBar from "./components/HeaderBar";
+import TopBar from "./components/TopBar";
 import ExamMetaForm from "./components/ExamMetaForm";
 import AddQuestionButtons from "./components/AddQuestionButtons";
 import QuestionsList from "./components/QuestionsList";
@@ -419,7 +419,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
       }}
     >
       <Paper elevation={12} sx={{ p: { xs: 3, md: 5 }, borderRadius: "24px", bgcolor: "#fff" }}>
-        <HeaderBar
+        <TopBar
           readonly={readonly}
           examData={examData}
           onBack={() => navigate("/tutor-dashboard")}
@@ -487,15 +487,15 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
                 searchError={searchError}
               />
               <Box sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}>
-                <HeaderBar.GoToListButton onClick={() => navigate("/tutor-exam-list")} />
-                <HeaderBar.SaveButton label={examData ? "Save Changes" : "Save Exam"} />
+                <TopBar.GoToListButton onClick={() => navigate("/tutor-exam-list")} />
+                <TopBar.SaveButton label={examData ? "Save Changes" : "Save Exam"} />
               </Box>
             </>
           )}
         </form>
       </Paper>
 
-      <HeaderBar.ScrollTopFab show={showScroll} onClick={scrollTop} />
+      <TopBar.ScrollTopFab show={showScroll} onClick={scrollTop} />
 
       <Snackbar
         open={isSnackbarOpen}

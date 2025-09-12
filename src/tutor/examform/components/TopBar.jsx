@@ -6,18 +6,21 @@ import {
   List as ListIcon,
   Save as SaveIcon,
 } from "@mui/icons-material";
+import BallotIcon from "@mui/icons-material/Ballot";
 
-const HeaderBar = ({ readonly, examData, onBack }) => {
+const TopBar = ({ readonly, examData, onBack }) => {
   return (
     <>
       <Box
         sx={{
-          display: "flex",
-          justifyContent: "space-between",
+          display: "grid",
+          gridTemplateColumns: "auto 1fr auto",  // left / center / right
           alignItems: "center",
           mb: 4,
+          columnGap: 2,
         }}
       >
+        {/* Left: Back */}
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}
@@ -28,23 +31,43 @@ const HeaderBar = ({ readonly, examData, onBack }) => {
             borderRadius: "12px",
             fontWeight: "bold",
             "&:hover": { backgroundColor: "#E3F2FD" },
+            justifySelf: "start",
           }}
         >
           Back to Dashboard
         </Button>
 
+        {/* Center: Title (now truly centered) */}
         <Typography
           variant="h4"
-          gutterBottom
-          textAlign="center"
-          fontWeight="bold"
-          color="#37474f"
-          sx={{ flexGrow: 1 }}
+          sx={{
+            fontWeight: "bold",
+            color: "#1A237E",
+            display: "inline-flex",
+            gap: 1,
+            alignItems: "center",
+            justifySelf: "center",
+            textAlign: "center",
+          }}
         >
+          <BallotIcon sx={{ fontSize: 28 }} />
           {readonly ? "View Exam" : examData ? "Edit Exam" : "Create a New Exam"}
         </Typography>
 
-        <Box sx={{ width: 150 }} />
+        {/* Right: invisible spacer to balance the Back button's width */}
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          sx={{
+            visibility: "hidden",
+            borderRadius: "12px",
+            justifySelf: "end",
+          }}
+          aria-hidden
+          tabIndex={-1}
+        >
+          Back to Dashboard
+        </Button>
       </Box>
 
       <Typography
@@ -64,6 +87,7 @@ const HeaderBar = ({ readonly, examData, onBack }) => {
   );
 };
 
+/* --- the rest of your exports stay the same --- */
 export const ScrollTopFab = ({ show, onClick }) => (
   <Zoom in={show}>
     <Button
@@ -86,7 +110,7 @@ export const ScrollTopFab = ({ show, onClick }) => (
     </Button>
   </Zoom>
 );
-HeaderBar.ScrollTopFab = ScrollTopFab;
+TopBar.ScrollTopFab = ScrollTopFab;
 
 export const GoToListButton = ({ onClick }) => (
   <Button
@@ -113,7 +137,7 @@ export const GoToListButton = ({ onClick }) => (
     Go to Exam List
   </Button>
 );
-HeaderBar.GoToListButton = GoToListButton;
+TopBar.GoToListButton = GoToListButton;
 
 export const SaveButton = ({ label = "Save Exam" }) => (
   <Button
@@ -138,6 +162,6 @@ export const SaveButton = ({ label = "Save Exam" }) => (
     {label}
   </Button>
 );
-HeaderBar.SaveButton = SaveButton;
+TopBar.SaveButton = SaveButton;
 
-export default HeaderBar;
+export default TopBar;
