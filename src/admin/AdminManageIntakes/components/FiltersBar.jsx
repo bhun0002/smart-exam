@@ -1,48 +1,75 @@
+// src/admin/components/FiltersBar.jsx
 import React from "react";
 import {
-  Paper, Box, TextField, InputAdornment, FormControlLabel, Switch, Stack, Chip, Button,
+  Box, TextField, InputAdornment, FormControlLabel, Switch,
+  Stack, Chip, Button
 } from "@mui/material";
-import { Search as SearchIcon } from "@mui/icons-material";
+import { Search as SearchIcon, Refresh as RefreshIcon, Add as AddIcon } from "@mui/icons-material";
 
 export default function FiltersBar({
   search, setSearch,
   showDeleted, setShowDeleted,
-  loading, onReset
+  activeCount = 0, deletedCount = 0,
+  loading = false,
+  onReset,
+  onAddClick,
 }) {
   return (
-    <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: "14px", bgcolor: "#fff", border: "1px solid #eef2f6" }}>
-      <Box sx={{ display: "grid", gridTemplateColumns: "1.5fr auto auto", gap: 1.5, alignItems: "center" }}>
-        <TextField
-          label="Search (intake name)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+    <Box
+      sx={{
+        display: "grid",
+        gap: 2,
+        gridTemplateColumns: { xs: "1fr", md: "1.3fr auto auto" },
+        alignItems: "center",
+      }}
+    >
+      <TextField
+        label="Search (intake name)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        disabled={loading}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon />
+            </InputAdornment>
+          ),
+          sx: { borderRadius: "12px" },
+        }}
+      />
+
+      <FormControlLabel
+        control={<Switch checked={!!showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />}
+        label="Show deleted"
+      />
+
+      <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+        <Chip
+          label={`${activeCount} Active | ${deletedCount} Deleted`}
+          size="small"
+          variant="outlined"
+          sx={{ borderRadius: "8px", fontWeight: "bold" }}
+        />
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={onReset}
           disabled={loading}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-            sx: { borderRadius: "12px" },
-          }}
-        />
-
-        <FormControlLabel
-          control={<Switch checked={!!showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />}
-          label="Show deleted"
-        />
-
-        <Stack direction="row" gap={1} justifyContent="flex-end">
-          <Chip
-            label={showDeleted ? "Deleted" : "Active"}
-            color={showDeleted ? "warning" : "default"}
-            sx={{ borderRadius: "8px", fontWeight: "bold", alignSelf: "center" }}
-          />
-          <Button variant="outlined" onClick={onReset} disabled={loading} sx={{ borderRadius: "12px" }}>
-            Reset
+          sx={{ borderRadius: "12px" }}
+        >
+          Reset
+        </Button>
+        {onAddClick && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={onAddClick}
+            sx={{ borderRadius: "12px", fontWeight: "bold" }}
+          >
+            Add Intake
           </Button>
-        </Stack>
-      </Box>
-    </Paper>
+        )}
+      </Stack>
+    </Box>
   );
 }

@@ -50,6 +50,7 @@ const StudentLogin = () => {
                     id: studentDoc.id,
                     name: studentData.name,      // add this
                     intake: studentData.intakeId,  // add this
+                    courseId: studentData.courseId
                 });
                 navigate('/student-dashboard');
             } else {

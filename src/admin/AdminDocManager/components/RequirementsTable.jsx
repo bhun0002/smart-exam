@@ -1,3 +1,4 @@
+// src/admin/components/RequirementsTable.jsx
 import React from "react";
 import {
   Paper, Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
@@ -10,13 +11,23 @@ import {
   InsertDriveFile as FileIcon,
 } from "@mui/icons-material";
 
+const isDeletedTrue = (v) => v === true || v === "true" || v === 1;
+
 export default function RequirementsTable({
   rows, onEdit, onSoftDelete, onRestore, onOpenRef, loading, showingDeleted
 }) {
   return (
-    <TableContainer component={Paper} sx={{ borderRadius: "14px", border: "1px solid #eef2f6" }}>
+    <TableContainer component={Paper} sx={{boxShadow: 3 }}>
       <Table stickyHeader size="medium">
-        <TableHead sx={{ bgcolor: "#f7f9fc" }}>
+        {/* header color aligned to standard (#ffd6a5) */}
+        <TableHead
+          sx={{
+            bgcolor: "#ffd6a5",
+            "& .MuiTableCell-head": {
+              backgroundColor: "#ffd6a5",
+            },
+          }}
+        >
           <TableRow>
             <TableCell sx={{ fontWeight: 700 }}>Title</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
@@ -40,12 +51,16 @@ export default function RequirementsTable({
             </TableRow>
           ) : (
             rows.map((r) => {
-              const muted = r.isDeleted === true;
+              const muted = isDeletedTrue(r.isDeleted);
               return (
-                <TableRow key={r.id} sx={{ "&:nth-of-type(odd)": { bgcolor: "#fafafa" } }}>
+                <TableRow
+                  key={r.id}
+                  sx={{ "&:hover": { bgcolor: "#f1f1f1" } }}
+                >
                   <TableCell sx={{ fontWeight: 600, ...(muted && { textDecoration: "line-through", color: "text.disabled" }) }}>
                     {r.title}
                   </TableCell>
+
                   <TableCell
                     sx={{
                       maxWidth: 520,
@@ -59,6 +74,7 @@ export default function RequirementsTable({
                   >
                     {r.description || "—"}
                   </TableCell>
+
                   <TableCell>
                     {r.isMandatory ? (
                       <Chip
@@ -74,6 +90,7 @@ export default function RequirementsTable({
                       />
                     )}
                   </TableCell>
+
                   <TableCell>
                     {r.refMedia ? (
                       <Tooltip title="Open reference">
@@ -84,11 +101,10 @@ export default function RequirementsTable({
                         </span>
                       </Tooltip>
                     ) : (
-                      <Typography variant="body2" color="text.disabled">
-                        —
-                      </Typography>
+                      <Typography variant="body2" color="text.disabled">—</Typography>
                     )}
                   </TableCell>
+
                   <TableCell>
                     <Stack direction="row" spacing={1}>
                       {!muted ? (

@@ -26,6 +26,8 @@ const SubmissionTable = ({
           <TableRow>
             <TableCell sx={{ fontWeight: "bold" }}>Student</TableCell>
             <TableCell sx={{ fontWeight: "bold" }}>Exam</TableCell>
+            {/* CHANGED: show Course (name) instead of Course ID */}
+            <TableCell sx={{ fontWeight: "bold" }}>Course</TableCell>
             <TableCell sx={{ fontWeight: "bold" }}>Intake</TableCell>
             <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
             <TableCell sx={{ fontWeight: "bold" }}>Start</TableCell>
@@ -38,11 +40,12 @@ const SubmissionTable = ({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={9} align="center">Loading…</TableCell>
+              {/* colSpan reflects the 10 header cells above */}
+              <TableCell colSpan={10} align="center">Loading…</TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} align="center">No submissions found</TableCell>
+              <TableCell colSpan={10} align="center">No submissions found</TableCell>
             </TableRow>
           ) : (
             rows.map(row => {
@@ -59,6 +62,9 @@ const SubmissionTable = ({
                   ? `${row.gradedTotal ?? 0} / ${row.gradedMax} pts`
                   : `${row.gradedTotal ?? 0} pts`
                 : "Not graded";
+
+              // NEW: course name from the matched exam
+              const courseName = exam?.courseName || "-";
 
               return (
                 <TableRow key={row.id} sx={{ "&:hover": { bgcolor: "#f1f1f1" } }}>
@@ -79,6 +85,15 @@ const SubmissionTable = ({
                   </TableCell>
 
                   <TableCell>{exam ? exam.title : "-"}</TableCell>
+
+                  {/* NEW: Course name cell */}
+                  <TableCell>
+                    <Chip
+                      label={courseName}
+                      size="small"
+                      sx={{ borderRadius: "8px", fontWeight: "bold" }}
+                    />
+                  </TableCell>
 
                   <TableCell>
                     <Chip

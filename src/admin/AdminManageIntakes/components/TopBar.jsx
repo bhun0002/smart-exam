@@ -1,15 +1,24 @@
+// src/admin/components/TopBar.jsx
 import React from "react";
 import { Box, Button, Typography } from "@mui/material";
-import HomeIcon from "@mui/icons-material/Home";
-import AddIcon from "@mui/icons-material/Add";
-import SchoolIcon from '@mui/icons-material/School';
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SchoolIcon from "@mui/icons-material/School";
 
-export default function TopBar({ onBack, onAdd }) {
+export default function TopBar({ onBack }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 4,
+        flexWrap: "wrap",
+        gap: 2,
+      }}
+    >
       <Button
         variant="outlined"
-        startIcon={<HomeIcon />}
+        startIcon={<ArrowBackIcon />}
         onClick={onBack}
         sx={{
           borderColor: "#4A90E2",
@@ -31,23 +40,6 @@ export default function TopBar({ onBack, onAdd }) {
           Manage Intakes
         </Typography>
       </Box>
-
-      {onAdd && (
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={onAdd}
-          sx={{
-            borderRadius: "12px",
-            fontWeight: "bold",
-            backgroundColor: "#81C784",
-            color: "#1B5E20",
-            "&:hover": { backgroundColor: "#66BB6A" },
-          }}
-        >
-          Add Intake
-        </Button>
-      )}
     </Box>
   );
 }

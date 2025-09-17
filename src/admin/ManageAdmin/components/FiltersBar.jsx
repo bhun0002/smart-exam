@@ -1,100 +1,90 @@
+// src/admin/components/FiltersBar.jsx
 import React from "react";
 import {
-    Paper, Box, TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem,
-    Stack, Chip, Button, FormControlLabel, Switch
+  Box, TextField, InputAdornment, MenuItem, Button, FormControlLabel, Switch, Chip, Stack
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
+import { Search as SearchIcon, Refresh as RefreshIcon, Add as AddIcon } from "@mui/icons-material";
 
 export default function FiltersBar({
-    search, setSearch,
-    role, setRole,
-    status, setStatus,
-    showDeleted, setShowDeleted,   // NEW
-    loading,
-    onReset
+  loading = false,
+  search, setSearch,
+  role, setRole,
+  status, setStatus,
+  showDeleted, setShowDeleted,
+  activeCount = 0, deletedCount = 0,
+  onReset,
+  onAddClick,
 }) {
-    return (
-        <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: "14px", bgcolor: "#fff", border: "1px solid #eef2f6" }}>
-            <Box sx={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr auto auto", gap: 1.5, alignItems: "center" }}>
-                <TextField
-                    label="Search (name, email)"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    disabled={loading}
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <SearchIcon />
-                            </InputAdornment>
-                        ),
-                        sx: { borderRadius: "12px" },
-                    }}
-                />
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gap: 2,
+        gridTemplateColumns: { xs: "1fr", md: "1.1fr 1fr 1fr 1fr auto auto" },
+      }}
+    >
+      <TextField
+        label="Search (name, email)"
+        size="small"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        InputProps={{
+          startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
+          sx: { borderRadius: "12px" },
+        }}
+        placeholder="e.g. Alice, alice@email.com"
+      />
 
-                <FormControl>
-                    <InputLabel id="role-filter-label">Role</InputLabel>
-                    <Select
-                        labelId="role-filter-label"
-                        value={role}
-                        label="Role"
-                        onChange={(e) => setRole(e.target.value)}
-                        disabled={loading}
-                        sx={{ borderRadius: "12px" }}
-                    >
-                        <MenuItem value="all">All</MenuItem>
-                        <MenuItem value="master">Master Admin</MenuItem>
-                        <MenuItem value="tutor">Tutor Admin</MenuItem>
-                    </Select>
-                </FormControl>
+      <TextField
+        select size="small" label="Role" value={role} onChange={(e) => setRole(e.target.value)}
+        InputProps={{ sx: { borderRadius: "12px" } }}
+      >
+        <MenuItem value="all">All</MenuItem>
+        <MenuItem value="master">Master Admin</MenuItem>
+        <MenuItem value="tutor">Tutor Admin</MenuItem>
+      </TextField>
 
-                <FormControl>
-                    <InputLabel id="status-filter-label">Status</InputLabel>
-                    <Select
-                        labelId="status-filter-label"
-                        value={status}
-                        label="Status"
-                        onChange={(e) => setStatus(e.target.value)}
-                        disabled={loading}
-                        sx={{ borderRadius: "12px" }}
-                    >
-                        <MenuItem value="all">All</MenuItem>
-                        <MenuItem value="approved">Approved</MenuItem>
-                        <MenuItem value="pending">Pending</MenuItem>
-                    </Select>
-                </FormControl>
+      <TextField
+        select size="small" label="Status" value={status} onChange={(e) => setStatus(e.target.value)}
+        InputProps={{ sx: { borderRadius: "12px" } }}
+      >
+        <MenuItem value="all">All</MenuItem>
+        <MenuItem value="approved">Approved</MenuItem>
+        <MenuItem value="pending">Pending</MenuItem>
+      </TextField>
 
-                <FormControlLabel
-                    control={<Switch checked={!!showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />}
-                    label="Show deleted"
-                />
+      <FormControlLabel
+        control={<Switch checked={!!showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />}
+        label="Show deleted"
+      />
 
-                <Stack direction="row" gap={1} justifyContent="flex-end">
-                    <Chip
-                        label={
-                            showDeleted
-                                ? "Deleted"
-                                : status === "approved"
-                                    ? "Approved"
-                                    : status === "pending"
-                                        ? "Pending"
-                                        : "All"
-                        }
-                        color={
-                            showDeleted
-                                ? "warning"
-                                : status === "approved"
-                                    ? "success"
-                                    : status === "pending"
-                                        ? "warning"
-                                        : "default"
-                        }
-                        sx={{ borderRadius: "8px", fontWeight: "bold", alignSelf: "center" }}
-                    />
-                    <Button variant="outlined" onClick={onReset} disabled={loading} sx={{ borderRadius: "12px" }}>
-                        Reset
-                    </Button>
-                </Stack>
-            </Box>
-        </Paper>
-    );
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
+        <Chip
+          label={`${activeCount} Active | ${deletedCount} Deleted`}
+          size="small"
+          variant="outlined"
+          sx={{ borderRadius: "8px", fontWeight: "bold" }}
+        />
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={onReset}
+          disabled={loading}
+          sx={{ borderRadius: "12px" }}
+        >
+          Reset
+        </Button>
+        {onAddClick && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={onAddClick}
+            sx={{ borderRadius: "12px", fontWeight: "bold" }}
+          >
+            Add Admin
+          </Button>
+        )}
+      </Stack>
+    </Box>
+  );
 }

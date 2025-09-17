@@ -11,6 +11,10 @@ import {
   serverTimestamp,
   doc,
   updateDoc,
+  // ▼ NEW: for loading courses
+  getDocs,
+  query,
+  orderBy,
 } from "firebase/firestore";
 import axios from "axios";
 
@@ -31,6 +35,8 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
   const [title, setTitle] = useState(examData?.title || "");
   const [duration, setDuration] = useState(examData?.duration || "");
   const [selectedIntake, setSelectedIntake] = useState(examData?.intakeId || "");
+  // ▼ NEW: course mapping like intake
+  const [selectedCourse, setSelectedCourse] = useState(examData?.courseId || "");
 
   // questions
   const [questions, setQuestions] = useState([]);
@@ -47,21 +53,43 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
   // intakes
   const { intakes, error: intakesErr } = useIntakes();
 
+  // ▼ NEW: courses (mirrors useIntakes behavior, but inline here to keep changes localized)
+  const [courses, setCourses] = useState([]);
+  const [coursesErr, setCoursesErr] = useState("");
+
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, "courses"), orderBy("name", "asc")));
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setCourses(list);
+      } catch (e) {
+        console.error("Failed to load courses:", e);
+        setCoursesErr("Failed to load courses.");
+      }
+    };
+    loadCourses();
+  }, []);
+
   // points helper
   const isValidPoints = (v) =>
     typeof v === "number" && !Number.isNaN(v) && v > 0 && v <= 100;
 
-  // init questions
+  // init questions + meta
   useEffect(() => {
     if (examData) {
       setTitle(examData.title || "");
       setDuration(examData.duration || "");
       setSelectedIntake(examData.intakeId || "");
+      // ▼ NEW: hydrate selected course
+      setSelectedCourse(examData.courseId || "");
       setQuestions(ensureUniqueIds(examData.questions || []));
     } else {
       setTitle("");
       setDuration("");
       setSelectedIntake("");
+      // ▼ NEW: clear selected course
+      setSelectedCourse("");
       setQuestions(
         ensureUniqueIds([
           {
@@ -111,11 +139,10 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
 
   const handleCloseSnackbar = () => setIsSnackbarOpen(false);
 
-  // >>> CHANGED: signed upload via your API (logs added only)
+  // signed upload via your API (unchanged)
   const uploadMedia = async (file) => {
     if (readonly || !file) return null;
     try {
-      // 1) get signature from your backend
       const base = (process.env.REACT_APP_API_BASE || "").replace(/\/+$/, "");
       if (!base) throw new Error("Missing REACT_APP_API_BASE in your .env");
 
@@ -147,7 +174,6 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
         });
       } catch (_) {}
 
-      // 2) prepare Cloudinary upload
       const formData = new FormData();
       formData.append("file", file);
       formData.append("timestamp", timestamp);
@@ -156,7 +182,6 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
       if (folder) formData.append("folder", folder);
       if (access_mode) formData.append("access_mode", access_mode);
 
-      // DEBUG: FormData preview
       try {
         const fdPreview = {};
         for (const [k, v] of formData.entries()) {
@@ -165,7 +190,6 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
         console.log("[uploadMedia] POST formData:", fdPreview);
       } catch (_) {}
 
-      // use auto so images/videos both work
       const uploadEndpoint = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
       try {
         console.log("[uploadMedia] POST", uploadEndpoint);
@@ -173,7 +197,6 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
 
       const res = await axios.post(uploadEndpoint, formData);
 
-      // return identifiers for secure delivery later
       const { public_id, resource_type, format, version, access_mode: storedAccessMode } = res.data || {};
       try {
         console.log("[uploadMedia] upload-response:", { public_id, resource_type, format, version, access_mode: storedAccessMode });
@@ -181,7 +204,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
 
       if (!public_id) throw new Error("Missing Cloudinary public_id");
 
-      return { public_id, resource_type, format, version }; // << store identifiers, not open URL
+      return { public_id, resource_type, format, version };
     } catch (e) {
       console.error("[uploadMedia] ERROR:", e?.message || e);
       if (e?.response) {
@@ -194,7 +217,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     }
   };
 
-  // actions – add/move/delete/update question
+  // actions – add/move/delete/update question (unchanged)
   const addQuestion = (type) => {
     if (readonly) return;
     const q = { id: generateUniqueId(), type, media: null };
@@ -249,7 +272,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     });
   };
 
-  // validation – unchanged
+  // validation — now also requires Course
   const validateQuestions = useCallback(() => {
     if (readonly) return null;
     if (!title || title.trim() === "") {
@@ -260,6 +283,10 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     }
     if (!selectedIntake) {
       return { message: "Please select an Intake before saving the exam.", fieldId: "exam-intake" };
+    }
+    // ▼ NEW: require course like intake
+    if (!selectedCourse) {
+      return { message: "Please select a Course before saving the exam.", fieldId: "exam-course" };
     }
     if (questions.length === 0) {
       return { message: "Add at least one question to save the exam.", fieldId: "add-question-buttons" };
@@ -339,7 +366,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
       }
     }
     return null;
-  }, [readonly, title, duration, selectedIntake, questions]);
+  }, [readonly, title, duration, selectedIntake, selectedCourse, questions]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -362,9 +389,9 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
         questions.map(async (q) => {
           if (q.media instanceof File) {
             const identifiers = await uploadMedia(q.media);
-            return { ...q, media: identifiers }; // << now stores { public_id, ... }
+            return { ...q, media: identifiers };
           }
-          return q; // keep legacy string or existing identifiers
+          return q;
         })
       );
 
@@ -381,6 +408,8 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
         title,
         duration: Number(duration),
         intakeId: selectedIntake,
+        // ▼ NEW: save courseId
+        courseId: selectedCourse,
         isDeleted: 0,
         questions: cleaned,
         totalPoints,
@@ -435,6 +464,11 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
           setSelectedIntake={setSelectedIntake}
           intakes={intakes}
           intakesError={intakesErr}
+          // ▼ NEW: pass course props (ExamMetaForm can render Course dropdown like Intake)
+          selectedCourse={selectedCourse}
+          setSelectedCourse={setSelectedCourse}
+          courses={courses}
+          coursesError={coursesErr}
           fieldErrors={fieldErrors}
           setFieldErrors={setFieldErrors}
           totalPoints={totalPoints}

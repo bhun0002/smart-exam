@@ -9,7 +9,7 @@ import TutorLogin from "./tutor/TutorLogin";
 import TutorDashboard from "./tutor/TutorDashboard";
 import TutorExamForm from "./tutor/examform/TutorExamForm";
 import TutorExamList from "./tutor/examlist/TutorExamList";
-import ManageStudents from './tutor/ManageStudents';
+import ManageStudents from './tutor/ManageStudents/ManageStudents';
 import ViewSubmissions from "./tutor/viewsubmission/ViewSubmissions";
 import TutorLogsList from "./tutor/logs/TutorLogsList";
 import TutorLogDetail from "./tutor/logs/TutorLogDetail";
@@ -19,6 +19,8 @@ import AdminForm from "./admin/AdminForm"; // To be used for a registration rout
 import AdminDashboard from "./admin/AdminDashboard";
 import ManageAdmins from './admin/ManageAdmin/ManageAdmins';
 import ManageIntakes from './admin/AdminManageIntakes/ManageIntakes';
+import ManageCourse from './admin/AdminManageCourse/AdminManageCourse';
+import ManageFee from './admin/AdminManageFee/AdminManageFee';
 import AdminLogin from "./admin/AdminLogin";
 import ProtectedRoute from "./ProtectedRoute";
 import AdminDocManager from "./admin/AdminDocManager/AdminDocManager";
@@ -128,6 +130,22 @@ const App = () => {
           element={
             <ProtectedRoute requiredRole="masterAdmin">
               <ManageIntakes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-manage-course"
+          element={
+            <ProtectedRoute requiredRole="masterAdmin">
+              <ManageCourse />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-manage-fee"
+          element={
+            <ProtectedRoute requiredRole="masterAdmin">
+              <ManageFee />
             </ProtectedRoute>
           }
         />

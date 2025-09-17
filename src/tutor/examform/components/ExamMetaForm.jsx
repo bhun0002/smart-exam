@@ -1,3 +1,4 @@
+// src/tutor/examform/components/ExamMetaForm.jsx
 import React from "react";
 import {
   Card,
@@ -22,6 +23,11 @@ const ExamMetaForm = ({
   setSelectedIntake,
   intakes,
   intakesError,
+  // ▼ NEW props for Course (mirrors Intake)
+  selectedCourse,
+  setSelectedCourse,
+  courses = [],
+  coursesError,
   fieldErrors,
   setFieldErrors,
   totalPoints,
@@ -56,6 +62,7 @@ const ExamMetaForm = ({
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
             />
           </Grid>
+
           <Grid item xs={12} md={3}>
             <TextField
               label="Duration (minutes)"
@@ -77,6 +84,7 @@ const ExamMetaForm = ({
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
             />
           </Grid>
+
           <Grid item xs={12} md={3}>
             <FormControl
               fullWidth
@@ -125,30 +133,78 @@ const ExamMetaForm = ({
               )}
             </FormControl>
           </Grid>
+
+          {/* ▼ NEW: Course dropdown (same UX as Intake) */}
           <Grid item xs={12} md={3}>
-          <Tooltip title="Auto-calculated from each question's points." arrow>
-            <TextField
-              id="exam-total-points"
-              label="Total Points"
-              value={totalPoints}
+            <FormControl
               fullWidth
-              disabled
-              InputProps={{
-                readOnly: true,
+              required
+              variant="outlined"
+              disabled={readonly}
+              error={!!fieldErrors["exam-course"]}
+              sx={{ minWidth: 150 }}
+              onKeyDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
               }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  backgroundColor: "#f1f8e9",
-                },
-                "& .MuiInputBase-input.Mui-disabled": {
-                  WebkitTextFillColor: "#1B5E20 !important",
-                  fontWeight: 700,
-                },
-              }}
-            />
-          </Tooltip>
-        </Grid>
+            >
+              <InputLabel id="course-select-label">Course</InputLabel>
+              <Select
+                labelId="course-select-label"
+                id="exam-course"
+                value={selectedCourse}
+                label="Course"
+                onChange={(e) => {
+                  setSelectedCourse(e.target.value);
+                  if (fieldErrors["exam-course"])
+                    setFieldErrors((p) => ({ ...p, "exam-course": "" }));
+                }}
+                sx={{ borderRadius: "12px" }}
+              >
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {courses.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              {fieldErrors["exam-course"] && (
+                <Typography variant="caption" color="error">
+                  {fieldErrors["exam-course"]}
+                </Typography>
+              )}
+              {coursesError && (
+                <Typography variant="caption" color="error">
+                  {coursesError}
+                </Typography>
+              )}
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <Tooltip title="Auto-calculated from each question's points." arrow>
+              <TextField
+                id="exam-total-points"
+                label="Total Points"
+                value={totalPoints}
+                fullWidth
+                disabled
+                InputProps={{ readOnly: true }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "12px",
+                    backgroundColor: "#f1f8e9",
+                  },
+                  "& .MuiInputBase-input.Mui-disabled": {
+                    WebkitTextFillColor: "#1B5E20 !important",
+                    fontWeight: 700,
+                  },
+                }}
+              />
+            </Tooltip>
+          </Grid>
         </Grid>
       </CardContent>
     </Card>

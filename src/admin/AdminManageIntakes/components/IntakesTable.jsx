@@ -1,3 +1,4 @@
+// src/admin/components/IntakesTable.jsx
 import React from "react";
 import {
   Paper, Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
@@ -7,7 +8,6 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import RestoreIcon from "@mui/icons-material/Restore";
 
-// same logic as parent to display the Deleted chip reliably
 const isDeletedTrue = (v) => v === true || v === "true" || v === 1;
 
 export default function IntakesTable({
@@ -19,9 +19,17 @@ export default function IntakesTable({
   showingDeleted,
 }) {
   return (
-    <TableContainer component={Paper} sx={{ borderRadius: "14px", border: "1px solid #eef2f6" }}>
+    <TableContainer component={Paper} sx={{boxShadow: 3 }}>
       <Table stickyHeader size="medium">
-        <TableHead sx={{ bgcolor: "#f7f9fc" }}>
+        {/* header color aligned with Students standard */}
+       <TableHead
+         sx={{
+           bgcolor: "#ffd6a5",
+           "& .MuiTableCell-head": {
+             backgroundColor: "#ffd6a5",
+           },
+         }}
+       >
           <TableRow>
             <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
             <TableCell sx={{ fontWeight: 700, width: 220 }}>Created</TableCell>
@@ -41,7 +49,10 @@ export default function IntakesTable({
               const del = isDeletedTrue(r.isDeleted);
 
               return (
-                <TableRow key={r.id} sx={{ "&:nth-of-type(odd)": { bgcolor: "#fafafa" } }}>
+                <TableRow
+                  key={r.id}
+                  sx={{ "&:hover": { bgcolor: "#f1f1f1" } }}
+                >
                   <TableCell>
                     <Stack direction="row" alignItems="center" gap={1}>
                       <Chip

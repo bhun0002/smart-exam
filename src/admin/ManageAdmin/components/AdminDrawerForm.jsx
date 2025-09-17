@@ -1,3 +1,4 @@
+// src/admin/components/AdminDrawerForm.jsx
 import React, { useEffect, useState } from "react";
 import {
   Drawer, Box, Typography, Divider, TextField, FormControlLabel, Checkbox,
@@ -42,15 +43,17 @@ export default function AdminDrawerForm({ open, onClose, onSubmit, editing }) {
   };
 
   return (
-    <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { width: { xs: "100%", sm: 420 } } }}>
-      <Box sx={{ p: 3, display: "flex", flexDirection: "column", height: "100%" }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-          {isEdit ? "Edit Admin" : "Add New Admin"}
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      PaperProps={{ sx: { width: { xs: "100%", sm: 560 }, borderLeft: "1px solid #eee" } }}
+    >
+      <Box sx={{ p: 3, display: "flex", flexDirection: "column", height: "100%", gap: 2, bgcolor: "#fff" }}>
+        <Typography variant="h6" sx={{ color: "#1A237E", fontWeight: "bold" }}>
+          {isEdit ? "Edit Admin" : "Add Admin"}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {isEdit ? "Update details and save changes." : "Create an admin and assign roles."}
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
+        <Divider />
 
         <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2 }}>
           {!!err && <MuiAlert severity="error">{err}</MuiAlert>}
@@ -59,20 +62,20 @@ export default function AdminDrawerForm({ open, onClose, onSubmit, editing }) {
             label="Admin Name *"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+            InputProps={{ sx: { borderRadius: "12px" } }}
           />
           <TextField
             label="Email *"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+            InputProps={{ sx: { borderRadius: "12px" } }}
           />
           <TextField
             label={isEdit ? "New Password (optional)" : "Password *"}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+            InputProps={{ sx: { borderRadius: "12px" } }}
           />
 
           <FormControlLabel

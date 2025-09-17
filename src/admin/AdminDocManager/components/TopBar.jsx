@@ -1,18 +1,28 @@
+// src/admin/AdminDocManager/components/TopBar.jsx
 import React from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { Home as HomeIcon, Add as AddIcon, Description as DescriptionIcon } from "@mui/icons-material";
-import { brandPrimary, brandAccent, brandAccentHover } from "../constants/ui";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DescriptionIcon from "@mui/icons-material/Description";
 
-export default function TopBar({ onBack, onCreate }) {
+export default function TopBar({ onBack }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 4,
+        flexWrap: "wrap",
+        gap: 2,
+      }}
+    >
       <Button
         variant="outlined"
-        startIcon={<HomeIcon />}
+        startIcon={<ArrowBackIcon />}
         onClick={onBack}
         sx={{
-          borderColor: brandPrimary,
-          color: brandPrimary,
+          borderColor: "#4A90E2",
+          color: "#4A90E2",
           borderRadius: "12px",
           fontWeight: "bold",
           "&:hover": { backgroundColor: "#E3F2FD" },
@@ -22,26 +32,14 @@ export default function TopBar({ onBack, onCreate }) {
       </Button>
 
       <Box sx={{ flex: 1, textAlign: "center" }}>
-        <Typography variant="h4" sx={{ fontWeight: "bold", color: "#1A237E", display: "inline-flex", gap: 1, alignItems: "center" }}>
+        <Typography
+          variant="h4"
+          sx={{ fontWeight: "bold", color: "#1A237E", display: "inline-flex", gap: 1, alignItems: "center" }}
+        >
           <DescriptionIcon sx={{ fontSize: 28 }} />
           Document Requirements
         </Typography>
       </Box>
-
-      <Button
-        variant="contained"
-        startIcon={<AddIcon />}
-        onClick={onCreate}
-        sx={{
-          borderRadius: "12px",
-          fontWeight: "bold",
-          backgroundColor: brandAccent,
-          color: "#1B5E20",
-          "&:hover": { backgroundColor: brandAccentHover },
-        }}
-      >
-        Add Requirement
-      </Button>
     </Box>
   );
 }

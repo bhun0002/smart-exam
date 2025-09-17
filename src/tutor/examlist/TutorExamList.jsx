@@ -1,3 +1,4 @@
+// src/tutor/examlist/TutorExamList.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   collection,
@@ -11,7 +12,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
-import { Box, Snackbar, Typography } from "@mui/material";
+import { Box, Snackbar, Typography, Paper } from "@mui/material";
 import MuiAlert from "@mui/material/Alert";
 import { useNavigate } from "react-router-dom";
 
@@ -31,6 +32,7 @@ const TutorExamList = () => {
 
   // data
   const [intakes, setIntakes] = useState({});
+  const [courses, setCourses] = useState({});          // NEW
   const [exams, setExams] = useState([]);
 
   // ui
@@ -39,10 +41,11 @@ const TutorExamList = () => {
 
   // filters
   const [intakeId, setIntakeId] = useState("all");
+  const [courseId, setCourseId] = useState("all");     // NEW
   const [availability, setAvailability] = useState("all"); // 'all'|'available'|'unavailable'
   const [hasPassword, setHasPassword] = useState("all");   // 'all'|'with'|'without'
   const [minTotalPoints, setMinTotalPoints] = useState(""); // '' | number-string
-  const [showDeleted, setShowDeleted] = useState(false);     // NEW
+  const [showDeleted, setShowDeleted] = useState(false);
 
   // modal
   const [openModal, setOpenModal] = useState(false);
@@ -68,19 +71,28 @@ const TutorExamList = () => {
     setIntakes(map);
   }, []);
 
+  // NEW: fetch Courses map
+  const fetchCourses = useCallback(async () => {
+    const qCourses = query(collection(db, "courses"), orderBy("name", "asc"));
+    const snapshot = await getDocs(qCourses);
+    const map = {};
+    snapshot.docs.forEach((d) => (map[d.id] = d.data().name));
+    setCourses(map);
+  }, []);
+
   const fetchExams = useCallback(async () => {
-    // fetch ALL, filter client-side on showDeleted
     const examsQuery = query(collection(db, "exams"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(examsQuery);
     const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
     setExams(data);
   }, []);
 
-  useEffect(() => { fetchIntakes(); }, [fetchIntakes]);
+  useEffect(() => { fetchIntakes(); fetchCourses(); }, [fetchIntakes, fetchCourses]);
   useEffect(() => { if (Object.keys(intakes).length) fetchExams(); }, [intakes, fetchExams]);
 
   const refresh = async () => {
     await fetchIntakes();
+    await fetchCourses();
     await fetchExams();
   };
 
@@ -98,21 +110,28 @@ const TutorExamList = () => {
   const filtered = useMemo(() => {
     const t = searchTerm.trim().toLowerCase();
     return exams
-      .map((ex) => ({ ...ex, intakeName: intakes[ex.intakeId] || "Unknown Intake" }))
+      .map((ex) => ({
+        ...ex,
+        intakeName: intakes[ex.intakeId] || "Unknown Intake",
+        courseName: ex.courseName || courses[ex.courseId] || "-",   // NEW
+      }))
       .filter((ex) => {
-        // deleted filter
         const del = isDeletedTrue(ex.isDeleted);
-        if (!showDeleted && del) return false; // Active
-        if (showDeleted && !del) return false; // Deleted
+        if (!showDeleted && del) return false;
+        if (showDeleted && !del) return false;
 
-        // search by title OR intake name
+        // search by title OR intake name OR course name (NEW)
         const searchOk =
           !t ||
           ex.title?.toLowerCase().includes(t) ||
-          (ex.intakeName || "").toLowerCase().includes(t);
+          (ex.intakeName || "").toLowerCase().includes(t) ||
+          (ex.courseName || "").toLowerCase().includes(t);
 
         // intake filter
         const intakeOk = intakeId === "all" || ex.intakeId === intakeId;
+
+        // course filter (NEW)
+        const courseOk = courseId === "all" || ex.courseId === courseId;
 
         // availability filter
         const availOk =
@@ -143,9 +162,9 @@ const TutorExamList = () => {
           pointsOk = Number.isFinite(total) && total >= min;
         }
 
-        return searchOk && intakeOk && availOk && passwordOk && pointsOk;
+        return searchOk && intakeOk && courseOk && availOk && passwordOk && pointsOk;
       });
-  }, [exams, intakes, searchTerm, intakeId, availability, hasPassword, minTotalPoints, showDeleted]);
+  }, [exams, intakes, courses, searchTerm, intakeId, courseId, availability, hasPassword, minTotalPoints, showDeleted]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = useMemo(
@@ -156,10 +175,11 @@ const TutorExamList = () => {
   const handleResetFilters = () => {
     setSearchTerm("");
     setIntakeId("all");
+    setCourseId("all");                  // NEW
     setAvailability("all");
     setHasPassword("all");
     setMinTotalPoints("");
-    setShowDeleted(false);         // NEW
+    setShowDeleted(false);
     setPage(1);
   };
 
@@ -195,7 +215,7 @@ const TutorExamList = () => {
     if (!window.confirm("Move this exam to trash?")) return;
     try {
       await updateDoc(doc(db, "exams", id), {
-        isDeleted: 1, // soft delete
+        isDeleted: 1,
         updatedAt: serverTimestamp(),
       });
       setSnack({ open: true, msg: "Exam moved to trash.", severity: "success" });
@@ -209,7 +229,7 @@ const TutorExamList = () => {
   const restoreExam = async (id) => {
     try {
       await updateDoc(doc(db, "exams", id), {
-        isDeleted: 0, // restore
+        isDeleted: 0,
         updatedAt: serverTimestamp(),
       });
       setSnack({ open: true, msg: "Exam restored.", severity: "success" });
@@ -226,12 +246,10 @@ const TutorExamList = () => {
       return;
     }
     if (!current) {
-      // going to Available -> need password
       setEditAvailabilityForExamId(examId);
       setTempExamPassword("");
       setTempExamPasswordError("");
     } else {
-      // going to Unavailable
       confirmAvailabilityChange(examId, false);
     }
   };
@@ -288,30 +306,34 @@ const TutorExamList = () => {
   return (
     <Box sx={{ p: 4, bgcolor: "#f7f5f2", minHeight: "100vh" }}>
       <TopBar onBack={() => navigate("/tutor-dashboard")} onCreate={handleCreate} />
-
-      <FiltersBar
-        loading={false}
-        intakesMap={intakes}
-        search={searchTerm}
-        setSearch={(v) => { setSearchTerm(v); setPage(1); }}
-        intakeId={intakeId}
-        setIntakeId={(v) => { setIntakeId(v); setPage(1); }}
-        availability={availability}
-        setAvailability={(v) => { setAvailability(v); setPage(1); }}
-        hasPassword={hasPassword}
-        setHasPassword={(v) => { setHasPassword(v); setPage(1); }}
-        minTotalPoints={minTotalPoints}
-        setMinTotalPoints={(v) => { setMinTotalPoints(v); setPage(1); }}
-        showDeleted={showDeleted}                               // NEW
-        setShowDeleted={(v) => { setShowDeleted(v); setPage(1); }} // NEW
-        activeCount={counts.active}
-        deletedCount={counts.deleted}
-        onReset={handleResetFilters}
-      />
-
+      <Paper elevation={3} sx={{ p: 2, mb: 2, borderRadius: "12px" }}>
+        <FiltersBar
+          loading={false}
+          intakesMap={intakes}
+          coursesMap={courses}                  // NEW
+          search={searchTerm}
+          setSearch={(v) => { setSearchTerm(v); setPage(1); }}
+          intakeId={intakeId}
+          setIntakeId={(v) => { setIntakeId(v); setPage(1); }}
+          courseId={courseId}                   // NEW
+          setCourseId={(v) => { setCourseId(v); setPage(1); }} // NEW
+          availability={availability}
+          setAvailability={(v) => { setAvailability(v); setPage(1); }}
+          hasPassword={hasPassword}
+          setHasPassword={(v) => { setHasPassword(v); setPage(1); }}
+          minTotalPoints={minTotalPoints}
+          setMinTotalPoints={(v) => { setMinTotalPoints(v); setPage(1); }}
+          showDeleted={showDeleted}
+          setShowDeleted={(v) => { setShowDeleted(v); setPage(1); }}
+          activeCount={filtered.filter((s) => !isDeletedTrue(s.isDeleted)).length}
+          deletedCount={filtered.filter((s) => isDeletedTrue(s.isDeleted)).length}
+          onReset={handleResetFilters}
+        />
+      </Paper>
       <ExamsTable
         rows={pageItems}
         intakesMap={intakes}
+        coursesMap={courses}                  // NEW
         showPasswordForExamId={showPasswordForExamId}
         editAvailabilityForExamId={editAvailabilityForExamId}
         tempExamPassword={tempExamPassword}
@@ -320,12 +342,12 @@ const TutorExamList = () => {
         onTogglePasswordVisibility={togglePasswordVisibility}
         onView={handleView}
         onEdit={handleEdit}
-        onSoftDelete={softDeleteExam}     // NEW
-        onRestore={restoreExam}           // NEW
+        onSoftDelete={softDeleteExam}
+        onRestore={restoreExam}
         onToggleAvailability={toggleAvailability}
         onConfirmAvailability={confirmAvailabilityChange}
         onCancelAvailability={cancelAvailabilityEdit}
-        showingDeleted={showDeleted}      // NEW
+        showingDeleted={showDeleted}
       />
 
       <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>

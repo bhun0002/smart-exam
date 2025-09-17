@@ -244,6 +244,16 @@ const SubmissionDrawer = ({ open, onClose, submission, exam, intakeName }) => {
               sx={{ width: "fit-content", borderRadius: "8px" }}
             />
 
+            {/* NEW: Course name (from the matched exam) */}
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
+              Course
+            </Typography>
+            <Chip
+              label={exam?.courseName || "-"}
+              size="small"
+              sx={{ width: "fit-content", borderRadius: "8px", fontWeight: "bold" }}
+            />
+
             <Divider sx={{ my: 2 }} />
 
             <Typography variant="subtitle2" color="text.secondary">

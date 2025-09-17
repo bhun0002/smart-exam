@@ -1,3 +1,4 @@
+// src/admin/ManageIntakes.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../firebaseConfig";
@@ -16,7 +17,7 @@ import PaginationBar from "../../shared/PaginationBar";
 
 const PAGE_SIZE = 10;
 
-// Treat boolean true, "true" (string), or 1 as deleted
+// treat true/"true"/1 as deleted for robustness
 const isDeletedTrue = (v) => v === true || v === "true" || v === 1;
 
 const ManageIntakes = () => {
@@ -160,7 +161,7 @@ const ManageIntakes = () => {
       setEditOpen(false);
       setEditingId(null);
       setEditingName("");
-      await getIntakes(); // ensure latest flags/types are in memory
+      await getIntakes();
     } catch (e) {
       console.error(e);
       setSnack({ open: true, msg: "Failed to update intake.", severity: "error" });
@@ -176,7 +177,7 @@ const ManageIntakes = () => {
         updatedAt: serverTimestamp(),
       });
       setSnack({ open: true, msg: "Moved to trash.", severity: "success" });
-      await getIntakes(); // refresh so the row disappears from Active view
+      await getIntakes();
     } catch (e) {
       console.error(e);
       setSnack({ open: true, msg: "Failed to delete.", severity: "error" });
@@ -191,25 +192,31 @@ const ManageIntakes = () => {
         updatedAt: serverTimestamp(),
       });
       setSnack({ open: true, msg: "Restored.", severity: "success" });
-      await getIntakes(); // refresh so it leaves the Deleted view
+      await getIntakes();
     } catch (e) {
       console.error(e);
       setSnack({ open: true, msg: "Failed to restore.", severity: "error" });
     }
   };
 
-  // FILTERS (search + showDeleted) — robust deleted check
-  const filtered = useMemo(() => {
-    const t = search.trim().toLowerCase();
-    return intakes.filter((i) => {
-      const del = isDeletedTrue(i.isDeleted);
-      if (!showDeleted && del) return false; // Active: hide deleted
-      if (showDeleted && !del) return false; // Deleted: hide active
-      return (i.name || "").toLowerCase().includes(t);
-    });
-  }, [intakes, search, showDeleted]);
+  // SEARCH FILTER (used for counts + list)
+  const t = search.trim().toLowerCase();
+  const searchFiltered = useMemo(
+    () => intakes.filter((i) => (i.name || "").toLowerCase().includes(t)),
+    [intakes, t]
+  );
+  const activeCount = searchFiltered.filter((i) => !isDeletedTrue(i.isDeleted)).length;
+  const deletedCount = searchFiltered.filter((i) => isDeletedTrue(i.isDeleted)).length;
 
-  // PAGINATION (10 / page)
+  // FINAL FILTER (active vs deleted toggle)
+  const filtered = useMemo(() => {
+    return searchFiltered.filter((i) => {
+      const del = isDeletedTrue(i.isDeleted);
+      return showDeleted ? del : !del;
+    });
+  }, [searchFiltered, showDeleted]);
+
+  // PAGINATION
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = useMemo(
     () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -223,53 +230,51 @@ const ManageIntakes = () => {
   };
 
   return (
-    <Box sx={{ background: "linear-gradient(135deg, #FFDDC1, #C1FFD7)", minHeight: "100vh", py: { xs: 2, md: 4 } }}>
-      <Paper elevation={12} sx={{ bgcolor: "#fff", borderRadius: 0, width: "100%", px: 0, py: 0 }}>
-        <Box sx={{ maxWidth: 1000, mx: "auto", px: { xs: 2, md: 5 }, py: { xs: 2, md: 4 } }}>
-          <TopBar onBack={() => navigate("/admin-dashboard")} onAdd={() => setAddOpen(true)} />
+    <Box sx={{ padding: 4, bgcolor: "#f7f5f2", minHeight: "100vh" }}>
+      <TopBar onBack={() => navigate("/admin-dashboard")} />
 
-          <FiltersBar
-            search={search}
-            setSearch={(v) => { setSearch(v); setPage(1); }}
-            showDeleted={showDeleted}
-            setShowDeleted={(v) => { setShowDeleted(v); setPage(1); }}
-            loading={loading}
-            onReset={resetFilters}
-          />
-
-          {/* Table gets ONLY the current page's rows */}
-          <IntakesTable
-            rows={pageItems}
-            loading={loading}
-            onEdit={openEdit}
-            onSoftDelete={softDelete}
-            onRestore={restore}
-            showingDeleted={showDeleted}
-          />
-
-          <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
-            Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
-            –
-            {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
-          </Typography>
-
-          <PaginationBar
-            page={page}
-            totalPages={totalPages}
-            onPrev={() => setPage((p) => Math.max(1, p - 1))}
-            onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
-          />
-        </Box>
+      <Paper elevation={3} sx={{ p: 2, mb: 2, borderRadius: "12px" }}>
+        <FiltersBar
+          search={search}
+          setSearch={(v) => { setSearch(v); setPage(1); }}
+          showDeleted={showDeleted}
+          setShowDeleted={(v) => { setShowDeleted(v); setPage(1); }}
+          activeCount={activeCount}
+          deletedCount={deletedCount}
+          loading={loading}
+          onReset={resetFilters}
+          onAddClick={() => setAddOpen(true)}
+        />
       </Paper>
 
-      {/* Add via Drawer (structured only) */}
+      <IntakesTable
+        rows={pageItems}
+        loading={loading}
+        onEdit={openEdit}
+        onSoftDelete={softDelete}
+        onRestore={restore}
+        showingDeleted={showDeleted}
+      />
+
+      <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+        Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+        –
+        {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+      </Typography>
+
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+      />
+
       <AddIntakeDrawer
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onSubmit={handleAddSubmit}
       />
 
-      {/* Edit via Drawer (structured only) */}
       <EditIntakeDrawer
         open={editOpen}
         initialName={editingName}
