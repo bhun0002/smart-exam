@@ -24,6 +24,7 @@ import ManageFee from './admin/AdminManageFee/AdminManageFee';
 import AdminLogin from "./admin/AdminLogin";
 import ProtectedRoute from "./ProtectedRoute";
 import AdminDocManager from "./admin/AdminDocManager/AdminDocManager";
+import Payments from "./admin/AdminPaymentManager/Payments";
 
 // Tutor Admin Components
 import TutorAdminLogin from "./tutoradmin/TutorAdminLogin";
@@ -157,7 +158,14 @@ const App = () => {
             </ProtectedRoute>
           }
         />
-        
+        <Route
+          path="/admin-manage-payments"
+          element={
+            <ProtectedRoute requiredRole="masterAdmin">
+              <Payments />
+            </ProtectedRoute>
+          }
+        />
         {/* Tutor Admin Routes */}
         {/* Landing Page Route */}
         <Route path="/" element={<TutorAdminLandingPage />} />

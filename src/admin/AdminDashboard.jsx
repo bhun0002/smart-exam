@@ -17,18 +17,21 @@ import SchoolIcon from '@mui/icons-material/School';
 import DescriptionIcon from '@mui/icons-material/Description'; // 📄 For document management
 import MenuBookIcon from '@mui/icons-material/MenuBook';          // Courses
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn'; // Fees
+import PaymentIcon from '@mui/icons-material/Payment'; // 💳 Payments (NEW)
 import { useAuth } from "../AuthContext";
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const { logout, user } = useAuth();
 
+    // Added a 6th palette entry for Payments (NEW)
     const cardStyles = [
         { backgroundColor: "#FFF5E1", hover: "#FFEBCC", iconColor: "#F39C12" }, // Admin Management
         { backgroundColor: "#E1F5FE", hover: "#B3E5FC", iconColor: "#3498DB" }, // Intake Management
         { backgroundColor: "#F3E5F5", hover: "#E1BEE7", iconColor: "#8E24AA" }, // Document Management
         { backgroundColor: "#E8F5E9", hover: "#C8E6C9", iconColor: "#2E7D32" }, // Course Management
         { backgroundColor: "#FFF3E0", hover: "#FFE0B2", iconColor: "#EF6C00" }, // Fee Management
+        { backgroundColor: "#E0F7FA", hover: "#B2EBF2", iconColor: "#00838F" }, // Payments (NEW)
     ];
 
     const handleLogout = () => {
@@ -230,7 +233,8 @@ const AdminDashboard = () => {
                             </Box>
                         </Card>
                     </Grid>
-                    {/* Course Management (NEW) */}
+
+                    {/* Course Management */}
                     <Grid item xs={12} sm={6} md={4}>
                         <Card
                             elevation={6}
@@ -276,7 +280,7 @@ const AdminDashboard = () => {
                         </Card>
                     </Grid>
 
-                    {/* Fee Management (NEW) */}
+                    {/* Fee Management */}
                     <Grid item xs={12} sm={6} md={4}>
                         <Card
                             elevation={6}
@@ -317,6 +321,52 @@ const AdminDashboard = () => {
                                     }}
                                 >
                                     Manage Fees
+                                </Button>
+                            </Box>
+                        </Card>
+                    </Grid>
+
+                    {/* Payments (NEW) */}
+                    <Grid item xs={12} sm={6} md={4}>
+                        <Card
+                            elevation={6}
+                            sx={{
+                                borderRadius: '16px',
+                                bgcolor: cardStyles[5].backgroundColor,
+                                transition: "0.3s",
+                                "&:hover": {
+                                    bgcolor: cardStyles[5].hover,
+                                    transform: "translateY(-8px)",
+                                    boxShadow: '0 10px 20px rgba(0,0,0,0.15)',
+                                },
+                                display: 'flex',
+                                flexDirection: 'column',
+                                height: '100%',
+                            }}
+                        >
+                            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, p: 4 }}>
+                                <PaymentIcon sx={{ fontSize: 60, color: cardStyles[5].iconColor, mb: 1 }} />
+                                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                                    Payments
+                                </Typography>
+                                <Typography variant="body2" align="center" color="text.secondary">
+                                    View Interac e-Transfer payments and details.
+                                </Typography>
+                            </CardContent>
+                            <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => navigate("/admin-manage-payments")}
+                                    sx={{
+                                        bgcolor: cardStyles[5].iconColor,
+                                        '&:hover': { bgcolor: "#006064" },
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        borderRadius: '12px',
+                                        py: 1.5,
+                                    }}
+                                >
+                                    View Payments
                                 </Button>
                             </Box>
                         </Card>
