@@ -18,6 +18,8 @@ import TopBar from "./components/TopBar";
 import FiltersBar from "./components/FiltersBar";
 import StudentDrawerForm from "./components/StudentDrawerForm";
 import StudentsTable from "./components/StudentsTable";
+import PaginationBar from "../../shared/PaginationBar";
+import { ensureEnrollmentOnApprove } from "./helpers/ensureEnrollment";
 
 import { db } from "../../firebaseConfig";
 import { mintStudentId } from "./helpers/mintStudentId"; // ✅ uses helper (YYMM + CC + SEQ)
@@ -141,7 +143,7 @@ const ManageStudents = () => {
   };
 
   // ------- Actions -------
-  const addStudent = async ({ name, email, password, intakeId, courseId, contactNumber }) => {
+  const addStudent = async ({ name, email, password, intakeId, courseId, contactNumber, isApproved }) => {
     if (!name || !email || !password || !intakeId || !courseId) {
       setSnack({ open: true, msg: "All fields (including Course) are required.", severity: "error" });
       return;
@@ -179,7 +181,7 @@ const ManageStudents = () => {
       // ✅ Mint studentId: YY(2)+MM(2)+CourseID(2)+SEQ(2)
       const mintedId = await mintStudentId(db, courseTwoDigit);
 
-      await addDoc(studentsRef, {
+      const newRef = await addDoc(studentsRef, {
         studentId: mintedId,
         name: name.trim(),
         email: email.trim(),
@@ -187,10 +189,16 @@ const ManageStudents = () => {
         password: password.trim(),
         intakeId,
         courseId, // keep DOC id for joins
-        isApproved: false,
+        isApproved: !!isApproved,
         isDeleted: false,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
+
+      // ✅ if created as Approved, ensure enrollment immediately
+      if (isApproved) {
+        await ensureEnrollmentOnApprove(db, newRef.id);
+      }
 
       setSnack({ open: true, msg: "Student added.", severity: "success" });
       setDrawerOpen(false);
@@ -234,7 +242,15 @@ const ManageStudents = () => {
         }
       }
 
-      await updateDoc(doc(db, "students", id), payload);
+      // ✅ always bump updatedAt and persist isApproved from drawer
+      const patch = { ...payload, updatedAt: serverTimestamp() };
+      await updateDoc(doc(db, "students", id), patch);
+
+      // ✅ if drawer toggled to Approved, ensure enrollment too
+      if (patch.isApproved === true) {
+        await ensureEnrollmentOnApprove(db, id);
+      }
+
       setSnack({ open: true, msg: "Student updated.", severity: "success" });
       setDrawerOpen(false);
       setEditing(null);
@@ -248,11 +264,15 @@ const ManageStudents = () => {
   const onApprove = async (id, next) => {
     try {
       await updateDoc(doc(db, "students", id), { isApproved: next, updatedAt: serverTimestamp() });
+      if (next) {
+        await ensureEnrollmentOnApprove(db, id);
+      }
       setSnack({
         open: true,
         msg: next ? "Student approved." : "Set to pending.",
         severity: "success",
       });
+
       fetchData();
     } catch (e) {
       console.error(e);
@@ -287,9 +307,9 @@ const ManageStudents = () => {
   return (
     <Box sx={{ padding: 4, bgcolor: "#f7f5f2", minHeight: "100vh" }}>
       <TopBar
-              title="Manage Students"
-              onBack={() => navigate("/tutor-dashboard")}  
-            />
+        title="Manage Students"
+        onBack={() => navigate("/tutor-dashboard")}
+      />
 
       <Paper elevation={3} sx={{ p: 2, mb: 2, borderRadius: "12px" }}>
         <FiltersBar
@@ -353,6 +373,12 @@ const ManageStudents = () => {
         Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
         {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
       </Typography>
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+      />
 
       {/* Drawer form */}
       <StudentDrawerForm
@@ -386,8 +412,8 @@ const ManageStudents = () => {
               snack.severity === "error"
                 ? "#ef5350"
                 : snack.severity === "info"
-                ? "#2196f3"
-                : "#81c784",
+                  ? "#2196f3"
+                  : "#81c784",
             fontWeight: "bold",
             borderRadius: "8px",
           }}

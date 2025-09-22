@@ -37,15 +37,15 @@ export default function StudentsTable({
     <>
       <TableContainer component={Paper} sx={{ boxShadow: 3, borderRadius: "14px" }}>
         <Table stickyHeader size="medium">
-        <TableHead
-  sx={{
-    bgcolor: "#ffd6a5",
-    "& .MuiTableCell-head": {
-      backgroundColor: "#ffd6a5",  
-    },
-  }}
->
-        
+          <TableHead
+            sx={{
+              bgcolor: "#ffd6a5",
+              "& .MuiTableCell-head": {
+                backgroundColor: "#ffd6a5",
+              },
+            }}
+          >
+
             <TableRow>
               <TableCell sx={{ fontWeight: 700 }}>Student</TableCell>
               <TableCell sx={{ fontWeight: 700, width: 140 }}>Student ID</TableCell>

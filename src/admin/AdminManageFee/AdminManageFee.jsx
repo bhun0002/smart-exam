@@ -292,19 +292,18 @@ export default function AdminManageFee() {
         showingDeleted={showDeleted}
       />
 
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
-        <Typography variant="body2" sx={{ color: "text.secondary" }}>
-          Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
-          –
-          {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
-        </Typography>
-        <PaginationBar
-          page={page}
-          totalPages={totalPages}
-          onPrev={() => setPage((p) => Math.max(1, p - 1))}
-          onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
-        />
-      </Box>
+      <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+        Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+        –
+        {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+      </Typography>
+
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+      />
 
       <AddFeeDrawer
         open={addOpen}

@@ -25,6 +25,7 @@ import AdminLogin from "./admin/AdminLogin";
 import ProtectedRoute from "./ProtectedRoute";
 import AdminDocManager from "./admin/AdminDocManager/AdminDocManager";
 import Payments from "./admin/AdminPaymentManager/Payments";
+import AdminPaymentClaims from "./admin/AdminPaymentClaims/AdminPaymentClaims";
 
 // Tutor Admin Components
 import TutorAdminLogin from "./tutoradmin/TutorAdminLogin";
@@ -37,6 +38,8 @@ import StudentLogin from "./student/StudentLogin";
 import StudentDashboard from "./student/StudentDashboard";
 import StudentExamList from "./student/StudentExamList";
 import StudentTakeExam from "./student/StudentTakeExam/StudentTakeExam";
+import StudentPaymentsHome from "./student/payments/StudentPaymentsHome/StudentPaymentsHome";
+import ReportPaymentClaim from "./student/payments/pages/ReportPaymentClaim";
 
 const App = () => {
   return (
@@ -166,6 +169,14 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin-manage-payment-claims"
+          element={
+            <ProtectedRoute requiredRole="masterAdmin">
+              <AdminPaymentClaims />
+            </ProtectedRoute>
+          }
+        />
         {/* Tutor Admin Routes */}
         {/* Landing Page Route */}
         <Route path="/" element={<TutorAdminLandingPage />} />
@@ -211,6 +222,22 @@ const App = () => {
           element={
             <ProtectedRoute requiredRole="student">
               <StudentTakeExam />
+            </ProtectedRoute>
+          }
+        />
+         <Route
+          path="/student-payments"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <StudentPaymentsHome />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student-payments-report"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <ReportPaymentClaim />
             </ProtectedRoute>
           }
         />

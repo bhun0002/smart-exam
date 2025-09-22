@@ -11,6 +11,7 @@ import TopBar from "./components/TopBar";
 import FiltersBar from "./components/FiltersBar";
 import AdminDrawerForm from "./components/AdminDrawerForm";
 import AdminsTable from "./components/AdminsTable";
+import PaginationBar from "../../shared/PaginationBar";
 
 import { db } from "../../firebaseConfig";
 import validateEmail from "./helpers/validateEmail";
@@ -239,6 +240,13 @@ const ManageAdmins = () => {
         –
         {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
       </Typography>
+
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+      />
 
       <AdminDrawerForm
         open={drawerOpen}

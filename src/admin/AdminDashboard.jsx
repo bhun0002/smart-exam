@@ -17,7 +17,8 @@ import SchoolIcon from '@mui/icons-material/School';
 import DescriptionIcon from '@mui/icons-material/Description'; // 📄 For document management
 import MenuBookIcon from '@mui/icons-material/MenuBook';          // Courses
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn'; // Fees
-import PaymentIcon from '@mui/icons-material/Payment'; // 💳 Payments (NEW)
+import PaymentIcon from '@mui/icons-material/Payment'; // 💳 Payments 
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn'; // ✅ Payment Claims (NEW)
 import { useAuth } from "../AuthContext";
 
 const AdminDashboard = () => {
@@ -31,7 +32,8 @@ const AdminDashboard = () => {
         { backgroundColor: "#F3E5F5", hover: "#E1BEE7", iconColor: "#8E24AA" }, // Document Management
         { backgroundColor: "#E8F5E9", hover: "#C8E6C9", iconColor: "#2E7D32" }, // Course Management
         { backgroundColor: "#FFF3E0", hover: "#FFE0B2", iconColor: "#EF6C00" }, // Fee Management
-        { backgroundColor: "#E0F7FA", hover: "#B2EBF2", iconColor: "#00838F" }, // Payments (NEW)
+        { backgroundColor: "#E0F7FA", hover: "#B2EBF2", iconColor: "#00838F" }, // Payments 
+        { backgroundColor: "#F1F8E9", hover: "#DCEDC8", iconColor: "#558B2F" }, // Payment Claims
     ];
 
     const handleLogout = () => {
@@ -371,6 +373,51 @@ const AdminDashboard = () => {
                             </Box>
                         </Card>
                     </Grid>
+                    {/* Payment Claims (NEW) */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Card
+              elevation={6}
+              sx={{
+                borderRadius: '16px',
+                bgcolor: cardStyles[6].backgroundColor,
+                transition: "0.3s",
+                "&:hover": {
+                  bgcolor: cardStyles[6].hover,
+                  transform: "translateY(-8px)",
+                  boxShadow: '0 10px 20px rgba(0,0,0,0.15)',
+                },
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+              }}
+            >
+              <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, p: 4 }}>
+                <AssignmentTurnedInIcon sx={{ fontSize: 60, color: cardStyles[6].iconColor, mb: 1 }} />
+                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                  Payment Claims
+                </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                  Review student payment claims and link to Interac payments.
+                </Typography>
+              </CardContent>
+              <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate("/admin-manage-payment-claims")}
+                  sx={{
+                    bgcolor: cardStyles[6].iconColor,
+                    '&:hover': { bgcolor: "#33691E" },
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    borderRadius: '12px',
+                    py: 1.5,
+                  }}
+                >
+                  Manage Claims
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
                 </Grid>
             </Box>
         </Box>

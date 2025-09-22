@@ -1,4 +1,3 @@
-// src/admin/AdminPaymentManager/Payments.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -14,6 +13,10 @@ import TopBar from "./components/TopBar";
 import FiltersBar from "./components/FiltersBar";
 import PaymentsTable from "./components/PaymentsTable";
 import PaymentDetailsDrawer from "./components/PaymentDetailsDrawer";
+import PaginationBar from "../../shared/PaginationBar";
+
+// NEW: pull link status helper used by details drawer too
+import { getPaymentLinkStatus } from "./lib/firestore";
 
 const PAGE_SIZE = 10;
 const COLLECTION = "interac_payments";
@@ -28,7 +31,7 @@ const parseAmountFromSubject = (subject = "") => {
   return m ? parseFloat(m[1].replace(/,/g, "")) : null;
 };
 const localDateFromISO = (iso) => {
-  try { const d = new Date(iso); if (!isNaN(d.getTime())) return d; } catch {}
+  try { const d = new Date(iso); if (!isNaN(d.getTime())) return d; } catch { }
   return null;
 };
 const toStartOfDayLocal = (yyyy_mm_dd) => {
@@ -41,17 +44,59 @@ const toEndOfDayLocal = (yyyy_mm_dd) => {
   const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
   return new Date(y, m - 1, d, 23, 59, 59, 999);
 };
-const toCSV = (rows) => {
+
+/** Build CSV text with link status columns */
+const toCSV = (rows, statusMapForCSV) => {
   const head = [
-    "date","amount_value","currency","sender_name","sender_email","subject","bank_tail",
-    "txn_id","gateway","event","autodeposit","verified_dkim_dmarc","warnings",
+    "date",
+    "amount_value",
+    "currency",
+    "sender_name",
+    "sender_email",
+    "subject",
+    "bank_tail",
+    "txn_id",
+    "gateway",
+    "event",
+    "autodeposit",
+    "verified_dkim_dmarc",
+    "warnings",
+    // NEW:
+    "link_status",
+    "remaining",
   ];
   const esc = (v) => (typeof v === "string" ? `"${v.replace(/"/g, '""')}"` : v ?? "");
-  const line = (r) => ([
-    r.dateDisplay, r.amount?.value ?? "", r.amount?.currency ?? "", r.sender?.name ?? "", r.sender?.email ?? "",
-    r.meta?.subject ?? "", r.bank_account_tail ?? "", r.transaction_id ?? "", r.gateway ?? "", r.event ?? "",
-    r.autodeposit ?? "", r.verified?.dkim_dmarc ?? "", (r._warnings || []).join("; "),
-  ].map(esc).join(","));
+
+  const line = (r) => {
+    const st = statusMapForCSV[r.id];
+    let linkStatus = "Unlinked";
+    let remaining = "";
+    if (st) {
+      const rem = Number(st.remaining || 0);
+      remaining = Number.isFinite(rem) ? rem.toFixed(2) : "";
+      if (st.hasApprovedAny && rem <= 0) linkStatus = "Linked";
+      else if (st.hasApprovedAny && rem > 0) linkStatus = `Partial`;
+    }
+
+    return ([
+      r.dateDisplay,
+      r.amount?.value ?? "",
+      r.amount?.currency ?? "",
+      r.sender?.name ?? "",
+      r.sender?.email ?? "",
+      r.meta?.subject ?? "",
+      r.bank_account_tail ?? "",
+      r.transaction_id ?? "",
+      r.gateway ?? "",
+      r.event ?? "",
+      r.autodeposit ?? "",
+      r.verified?.dkim_dmarc ?? "",
+      (r._warnings || []).join("; "),
+      linkStatus,
+      remaining,
+    ].map(esc).join(","));
+  };
+
   return [head.join(","), ...rows.map(line)].join("\n");
 };
 
@@ -85,6 +130,9 @@ export default function Payments() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState(null);
 
+  // NEW: when the table “Link” button is used, start link drawer immediately
+  const [startLink, setStartLink] = useState(false);
+
   // snackbar
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
   const closeSnack = (_, r) => (r === "clickaway" ? null : setSnack((s) => ({ ...s, open: false })));
@@ -107,8 +155,8 @@ export default function Payments() {
 
     let parts = [orderBy("stored_at", "desc")];
     if (from) parts.push(where("stored_at", ">=", from));
-    if (to)   parts.push(where("stored_at", "<=", to));
-    if (autodeposit === "true")  parts.push(where("autodeposit", "==", true));
+    if (to) parts.push(where("stored_at", "<=", to));
+    if (autodeposit === "true") parts.push(where("autodeposit", "==", true));
     if (autodeposit === "false") parts.push(where("autodeposit", "==", false));
     if (afterDoc) parts.push(startAfter(afterDoc));
     parts.push(limit(PAGE_SIZE));
@@ -189,7 +237,7 @@ export default function Payments() {
     return { ...r, sender, dateDisplay, _warnings: warnings };
   }), [rows]);
 
-  /* ------------ client-side filters (incl. autodeposit + date guard) ------------ */
+  /* ------------ client-side filters ------------ */
   const filtered = useMemo(() => {
     const t = search.trim().toLowerCase();
     const min = amountMin === "" ? null : Number(amountMin);
@@ -202,7 +250,7 @@ export default function Payments() {
       const searchOk = !t || hay.includes(t);
 
       const gatewayOk = gateway === "all" || r.gateway === gateway;
-      const eventOk   = event   === "all" || r.event   === event;
+      const eventOk = event === "all" || r.event === event;
 
       const val = Number(r?.amount?.value ?? NaN);
       const amountOk = (min === null || (!Number.isNaN(val) && val >= min)) && (max === null || (!Number.isNaN(val) && val <= max));
@@ -219,19 +267,71 @@ export default function Payments() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
 
+  /* ------------ NEW: fetch link status for current page ------------ */
+  const [statusMap, setStatusMap] = useState({});
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const entries = await Promise.all(
+          pageItems.map(async (p) => {
+            try {
+              const st = await getPaymentLinkStatus(p.id);
+              return [p.id, st || null];
+            } catch {
+              return [p.id, null];
+            }
+          })
+        );
+        if (!alive) return;
+        const obj = Object.fromEntries(entries);
+        setStatusMap(obj);
+      } catch {
+        if (alive) setStatusMap({});
+      }
+    })();
+    return () => { alive = false; };
+  }, [pageItems]);
+
   /* ------------ reset & export ------------ */
   const handleResetFilters = () => {
     setSearch(""); setDateFrom(""); setDateTo(""); setAmountMin(""); setAmountMax("");
     setAutodeposit("all"); setGateway("all"); setEvent("all"); setPage(1);
   };
-  const handleExportCSV = () => {
-    const csv = toCSV(filtered);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `payments_export_${new Date().toISOString().split("T")[0]}.csv`;
-    a.click(); URL.revokeObjectURL(url);
+
+  // UPDATED: export with link status across the CURRENT FILTERED SET (not only the visible page)
+  const handleExportCSV = async () => {
+    try {
+      // build status map for all filtered rows so CSV has complete info
+      const entries = await Promise.all(
+        filtered.map(async (p) => {
+          try {
+            const st = await getPaymentLinkStatus(p.id);
+            return [p.id, st || null];
+          } catch {
+            return [p.id, null];
+          }
+        })
+      );
+      const statusMapForCSV = Object.fromEntries(entries);
+      const csv = toCSV(filtered, statusMapForCSV);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `payments_export_${new Date().toISOString().split("T")[0]}.csv`;
+      a.click(); URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      setSnack({ open: true, msg: "CSV export failed.", severity: "error" });
+    }
+  };
+
+  /* ------------ NEW: link from table button ------------ */
+  const handleOpenLinkFromTable = (row) => {
+    setSelected(row);
+    setStartLink(true);     // ask drawer to open link drawer immediately
+    setDrawerOpen(true);
   };
 
   /* ---------------- render ---------------- */
@@ -244,7 +344,7 @@ export default function Payments() {
           loading={loading}
           search={search} setSearch={(v) => { setSearch(v); setPage(1); }}
           dateFrom={dateFrom} setDateFrom={(v) => { setDateFrom(v); setPage(1); }}
-          dateTo={dateTo}     setDateTo={(v) => { setDateTo(v); setPage(1); }}
+          dateTo={dateTo} setDateTo={(v) => { setDateTo(v); setPage(1); }}
           amountMin={amountMin} setAmountMin={(v) => { setAmountMin(v); setPage(1); }}
           amountMax={amountMax} setAmountMax={(v) => { setAmountMax(v); setPage(1); }}
           autodeposit={autodeposit} setAutodeposit={(v) => { setAutodeposit(v); setPage(1); }}
@@ -276,22 +376,33 @@ export default function Payments() {
         <FormControlLabel control={<Switch checked={live} onChange={(e) => setLive(e.target.checked)} />} label="Live" />
       </Stack>
 
-      <PaymentsTable rows={pageItems} loading={loading} onRowClick={(r) => { setSelected(r); setDrawerOpen(true); }} />
+      <PaymentsTable
+        rows={pageItems}
+        loading={loading}
+        onRowClick={(r) => { setSelected(r); setDrawerOpen(true); }}
+        statusMap={statusMap}
+        onLink={handleOpenLinkFromTable}
+      />
 
       <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
-        Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+        Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+        –
+        {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
       </Typography>
 
-      <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 1 }}>
-        <Button size="small" variant="outlined" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} sx={{ borderRadius: "10px" }}>
-          Prev
-        </Button>
-        <Button size="small" variant="outlined" onClick={() => { if (page * PAGE_SIZE >= filtered.length) fetchNext(); else setPage((p) => p + 1); }} sx={{ borderRadius: "10px" }}>
-          Next
-        </Button>
-      </Stack>
-
-      <PaymentDetailsDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} payment={selected} />
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+      />
+      <PaymentDetailsDrawer
+        open={drawerOpen}
+        onClose={() => { setDrawerOpen(false); setStartLink(false); }}
+        payment={selected}
+        startLink={startLink}                 // NEW: auto-open link drawer when coming from table button
+        onLinkOpened={() => setStartLink(false)}
+      />
 
       <Snackbar open={snack.open} autoHideDuration={4000} onClose={closeSnack} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <MuiAlert onClose={closeSnack} severity={snack.severity} elevation={6} variant="filled">
