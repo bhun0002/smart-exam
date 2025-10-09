@@ -32,8 +32,11 @@ const TutorExamList = () => {
 
   // data
   const [intakes, setIntakes] = useState({});
-  const [courses, setCourses] = useState({});          // NEW
+  const [courses, setCourses] = useState({});
   const [exams, setExams] = useState([]);
+
+  // 🔹 active schedules (computed availability/password)
+  const [activeByExamId, setActiveByExamId] = useState({}); // { [examId]: { password, scheduleId } }
 
   // ui
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,7 +44,7 @@ const TutorExamList = () => {
 
   // filters
   const [intakeId, setIntakeId] = useState("all");
-  const [courseId, setCourseId] = useState("all");     // NEW
+  const [courseId, setCourseId] = useState("all");
   const [availability, setAvailability] = useState("all"); // 'all'|'available'|'unavailable'
   const [hasPassword, setHasPassword] = useState("all");   // 'all'|'with'|'without'
   const [minTotalPoints, setMinTotalPoints] = useState(""); // '' | number-string
@@ -52,7 +55,7 @@ const TutorExamList = () => {
   const [selectedExam, setSelectedExam] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  // availability inline state
+  // availability inline state (kept for compatibility; button will be disabled in table)
   const [showPasswordForExamId, setShowPasswordForExamId] = useState(null);
   const [editAvailabilityForExamId, setEditAvailabilityForExamId] = useState(null);
   const [tempExamPassword, setTempExamPassword] = useState("");
@@ -71,7 +74,6 @@ const TutorExamList = () => {
     setIntakes(map);
   }, []);
 
-  // NEW: fetch Courses map
   const fetchCourses = useCallback(async () => {
     const qCourses = query(collection(db, "courses"), orderBy("name", "asc"));
     const snapshot = await getDocs(qCourses);
@@ -87,13 +89,46 @@ const TutorExamList = () => {
     setExams(data);
   }, []);
 
+  // 🔹 fetch active schedules (now ∈ [startAtUTC, endAtUTC), status='published')
+  const fetchActiveSchedulesNow = useCallback(async () => {
+    const now = new Date();
+    const qActive = query(
+      collection(db, "scheduled_exams"),
+      where("status", "==", "published"),
+      where("startAtUTC", "<=", now),
+      where("endAtUTC", ">", now)
+    );
+    const snap = await getDocs(qActive);
+    const map = {};
+    snap.docs.forEach((d) => {
+      const row = d.data();
+      if (!row?.examId) return;
+      // If multiple active for same exam, prefer the earliest end time (deterministic)
+      if (!map[row.examId]) {
+        map[row.examId] = { password: row.password || "", scheduleId: d.id, endAtUTC: row.endAtUTC };
+      } else {
+        try {
+          const prev = map[row.examId];
+          if (row.endAtUTC?.toMillis?.() < prev.endAtUTC?.toMillis?.()) {
+            map[row.examId] = { password: row.password || "", scheduleId: d.id, endAtUTC: row.endAtUTC };
+          }
+        } catch {}
+      }
+    });
+    setActiveByExamId(map);
+  }, []);
+
   useEffect(() => { fetchIntakes(); fetchCourses(); }, [fetchIntakes, fetchCourses]);
   useEffect(() => { if (Object.keys(intakes).length) fetchExams(); }, [intakes, fetchExams]);
+
+  // fetch active schedules when list loads and every time you refresh exams
+  useEffect(() => { fetchActiveSchedulesNow(); }, [fetchActiveSchedulesNow, exams.length]);
 
   const refresh = async () => {
     await fetchIntakes();
     await fetchCourses();
     await fetchExams();
+    await fetchActiveSchedulesNow();
   };
 
   // Active / Deleted counts (total, not filtered)
@@ -110,17 +145,23 @@ const TutorExamList = () => {
   const filtered = useMemo(() => {
     const t = searchTerm.trim().toLowerCase();
     return exams
-      .map((ex) => ({
-        ...ex,
-        intakeName: intakes[ex.intakeId] || "Unknown Intake",
-        courseName: ex.courseName || courses[ex.courseId] || "-",   // NEW
-      }))
+      .map((ex) => {
+        const intakeName = intakes[ex.intakeId] || "Unknown Intake";
+        const courseName = ex.courseName || courses[ex.courseId] || "-";
+
+        // 🔹 derive availability/password from active schedules
+        const active = activeByExamId[ex.id];
+        const computedIsAvailable = !!active;
+        const computedPassword = active?.password || "";
+
+        return { ...ex, intakeName, courseName, computedIsAvailable, computedPassword };
+      })
       .filter((ex) => {
         const del = isDeletedTrue(ex.isDeleted);
         if (!showDeleted && del) return false;
         if (showDeleted && !del) return false;
 
-        // search by title OR intake name OR course name (NEW)
+        // search by title OR intake name OR course name
         const searchOk =
           !t ||
           ex.title?.toLowerCase().includes(t) ||
@@ -130,18 +171,17 @@ const TutorExamList = () => {
         // intake filter
         const intakeOk = intakeId === "all" || ex.intakeId === intakeId;
 
-        // course filter (NEW)
+        // course filter
         const courseOk = courseId === "all" || ex.courseId === courseId;
 
-        // availability filter
+        // 🔹 availability filter (now based on schedule)
         const availOk =
           availability === "all" ||
-          (availability === "available" && ex.isAvailable) ||
-          (availability === "unavailable" && !ex.isAvailable);
+          (availability === "available" && ex.computedIsAvailable) ||
+          (availability === "unavailable" && !ex.computedIsAvailable);
 
-        // has password filter
-        const hasPwd =
-          ex.examPassword && typeof ex.examPassword === "string" && ex.examPassword.trim().length > 0;
+        // 🔹 password filter (only meaningful when active)
+        const hasPwd = ex.computedIsAvailable && typeof ex.computedPassword === "string" && ex.computedPassword.trim().length > 0;
         const passwordOk =
           hasPassword === "all" ||
           (hasPassword === "with" && hasPwd) ||
@@ -155,16 +195,19 @@ const TutorExamList = () => {
             Number.isFinite(Number(ex.totalPoints))
               ? Number(ex.totalPoints)
               : (ex.questions || []).reduce((sum, q) => {
-                const n = Number(q?.points);
-                return sum + (Number.isFinite(n) ? n : 0);
-              }, 0);
+                  const n = Number(q?.points);
+                  return sum + (Number.isFinite(n) ? n : 0);
+                }, 0);
 
           pointsOk = Number.isFinite(total) && total >= min;
         }
 
         return searchOk && intakeOk && courseOk && availOk && passwordOk && pointsOk;
       });
-  }, [exams, intakes, courses, searchTerm, intakeId, courseId, availability, hasPassword, minTotalPoints, showDeleted]);
+  }, [
+    exams, intakes, courses, activeByExamId,
+    searchTerm, intakeId, courseId, availability, hasPassword, minTotalPoints, showDeleted
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = useMemo(
@@ -175,7 +218,7 @@ const TutorExamList = () => {
   const handleResetFilters = () => {
     setSearchTerm("");
     setIntakeId("all");
-    setCourseId("all");                  // NEW
+    setCourseId("all");
     setAvailability("all");
     setHasPassword("all");
     setMinTotalPoints("");
@@ -206,11 +249,11 @@ const TutorExamList = () => {
       setIsEditing(false);
       setEditAvailabilityForExamId(null);
       setShowPasswordForExamId(null);
-      await fetchExams();
+      await refresh(); // also refresh active schedules
     }, 150);
   };
 
-  // --- actions ---
+  // --- actions (kept for compatibility; toggle will be disabled in Table) ---
   const softDeleteExam = async (id) => {
     if (!window.confirm("Move this exam to trash?")) return;
     try {
@@ -219,7 +262,7 @@ const TutorExamList = () => {
         updatedAt: serverTimestamp(),
       });
       setSnack({ open: true, msg: "Exam moved to trash.", severity: "success" });
-      await fetchExams();
+      await refresh();
     } catch (e) {
       console.error(e);
       setSnack({ open: true, msg: "Failed to delete.", severity: "error" });
@@ -233,67 +276,18 @@ const TutorExamList = () => {
         updatedAt: serverTimestamp(),
       });
       setSnack({ open: true, msg: "Exam restored.", severity: "success" });
-      await fetchExams();
+      await refresh();
     } catch (e) {
       console.error(e);
       setSnack({ open: true, msg: "Failed to restore.", severity: "error" });
     }
   };
 
+  // These edit-availability handlers remain but won’t be reachable because the button is disabled.
   const toggleAvailability = (examId, current) => {
-    if (editAvailabilityForExamId && editAvailabilityForExamId !== examId) {
-      setSnack({ open: true, msg: "Finish the current availability action first.", severity: "warning" });
-      return;
-    }
-    if (!current) {
-      setEditAvailabilityForExamId(examId);
-      setTempExamPassword("");
-      setTempExamPasswordError("");
-    } else {
-      confirmAvailabilityChange(examId, false);
-    }
+    setSnack({ open: true, msg: "Availability is controlled by Schedule Exam.", severity: "info" });
   };
-
-  const confirmAvailabilityChange = async (examId, newStatus) => {
-    setTempExamPasswordError("");
-    let password = deleteField();
-
-    if (newStatus) {
-      const p = (tempExamPassword || "").trim();
-      if (!p) {
-        setTempExamPasswordError("Password is required.");
-        setSnack({ open: true, msg: "Password is required.", severity: "error" });
-        return;
-      }
-      if (p.length < 6) {
-        setTempExamPasswordError("Password must be at least 6 characters.");
-        setSnack({ open: true, msg: "Password must be at least 6 characters.", severity: "error" });
-        return;
-      }
-      password = p;
-    }
-
-    try {
-      await updateDoc(doc(db, "exams", examId), {
-        isAvailable: newStatus,
-        examPassword: password,
-        updatedAt: serverTimestamp(),
-      });
-      setSnack({
-        open: true,
-        msg: `Exam marked ${newStatus ? "Available" : "Unavailable"}.`,
-        severity: "success",
-      });
-      setEditAvailabilityForExamId(null);
-      setTempExamPassword("");
-      setShowPasswordForExamId(null);
-      await fetchExams();
-    } catch (e) {
-      console.error(e);
-      setSnack({ open: true, msg: "Failed to update availability.", severity: "error" });
-    }
-  };
-
+  const confirmAvailabilityChange = async () => {};
   const cancelAvailabilityEdit = () => {
     setEditAvailabilityForExamId(null);
     setTempExamPassword("");
@@ -305,18 +299,18 @@ const TutorExamList = () => {
 
   return (
     <Box sx={{ p: 4, bgcolor: "#f7f5f2", minHeight: "100vh" }}>
-      <TopBar onBack={() => navigate("/tutor-dashboard")} onCreate={handleCreate} />
+      <TopBar onBack={() => navigate("/tutor-dashboard")} />
       <Paper elevation={3} sx={{ p: 2, mb: 2, borderRadius: "12px" }}>
         <FiltersBar
           loading={false}
           intakesMap={intakes}
-          coursesMap={courses}                  // NEW
+          coursesMap={courses}
           search={searchTerm}
           setSearch={(v) => { setSearchTerm(v); setPage(1); }}
           intakeId={intakeId}
           setIntakeId={(v) => { setIntakeId(v); setPage(1); }}
-          courseId={courseId}                   // NEW
-          setCourseId={(v) => { setCourseId(v); setPage(1); }} // NEW
+          courseId={courseId}
+          setCourseId={(v) => { setCourseId(v); setPage(1); }}
           availability={availability}
           setAvailability={(v) => { setAvailability(v); setPage(1); }}
           hasPassword={hasPassword}
@@ -330,10 +324,11 @@ const TutorExamList = () => {
           onReset={handleResetFilters}
         />
       </Paper>
+
       <ExamsTable
         rows={pageItems}
         intakesMap={intakes}
-        coursesMap={courses}                  // NEW
+        coursesMap={courses}
         showPasswordForExamId={showPasswordForExamId}
         editAvailabilityForExamId={editAvailabilityForExamId}
         tempExamPassword={tempExamPassword}

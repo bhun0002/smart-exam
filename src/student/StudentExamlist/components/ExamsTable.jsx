@@ -1,3 +1,4 @@
+// src/student/StudentExamlist/components/ExamsTable.jsx
 import React from "react";
 import {
   Avatar,
@@ -13,10 +14,12 @@ import {
   TableRow,
   TextField,
   Typography,
+  Divider,
 } from "@mui/material";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
+/** UI-only: neutral table like Tutor list (tan header, white rows, subtle borders) */
 export default function ExamsTable({
   rows,
   page,
@@ -35,39 +38,32 @@ export default function ExamsTable({
     <>
       <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
         <Table>
-          <TableHead sx={{ bgcolor: "#c8e6c9" }}>
+          <TableHead sx={{ bgcolor: "#ffd6a5" }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: "bold", color: "#1b5e20" }}>Title</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "#1b5e20" }}>Intake</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "#1b5e20" }}>Duration (min)</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "#1b5e20" }}>Actions</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Title</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Intake</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Duration (min)</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>
+                Actions
+              </TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
-                  <Typography variant="body1" color="text.secondary">
-                    No exams found for your intake/course or matching your criteria.
-                  </Typography>
-                </TableCell>
+                <TableCell colSpan={9} align="center">No exams found</TableCell>
               </TableRow>
             ) : (
               rows.map((exam) => (
                 <React.Fragment key={exam.id}>
-                  <TableRow
-                    sx={{
-                      "&:hover": { bgcolor: "#f1f8e9" },
-                      ...(exam.isSubmitted && { bgcolor: "#e0e0e0", opacity: 0.9 }),
-                    }}
-                  >
+                  <TableRow sx={{ "&:hover": { bgcolor: "#f1f1f1" } }}>
                     <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                         <Avatar
                           sx={{
-                            bgcolor: "#A5D6A7",
-                            color: "#1B5E20",
-                            mr: 2,
+                            bgcolor: "#BBDEFB",
+                            color: "#1A237E",
                             width: 32,
                             height: 32,
                             fontSize: "0.9rem",
@@ -75,48 +71,52 @@ export default function ExamsTable({
                         >
                           {exam.title?.charAt(0) || "E"}
                         </Avatar>
-                        {exam.title || "Untitled"}
+                        <Typography sx={{ fontWeight: 600, color: "#111827" }}>
+                          {exam.title || "Untitled"}
+                        </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
                       <Chip
                         label={exam.intakeName || "Unknown Intake"}
-                        color="success"
+                        color="info"
                         size="small"
                         sx={{ borderRadius: "8px", fontWeight: "bold" }}
                       />
                     </TableCell>
-                    <TableCell>{exam.duration || "N/A"}</TableCell>
+
                     <TableCell>
+                      <Typography sx={{ color: "#374151" }}>
+                        {exam.duration ?? "N/A"}
+                      </Typography>
+                    </TableCell>
+
+                    <TableCell align="right">
                       {exam.isSubmitted ? (
                         <Chip
                           icon={<CheckCircleOutlineIcon />}
                           label="Exam Submitted"
                           size="medium"
                           color="success"
-                          sx={{
-                            fontWeight: "bold",
-                            borderRadius: "8px",
-                            bgcolor: "#81c784",
-                            color: "white",
-                          }}
+                          sx={{ fontWeight: 800, borderRadius: 2 }}
                         />
                       ) : (
                         <Button
                           size="small"
-                          variant="contained"
-                          color="primary"
+                          variant="outlined"
                           onClick={() => onAttempt(exam)}
                           startIcon={<PlayCircleOutlineIcon />}
                           sx={{
-                            borderRadius: "8px",
-                            fontWeight: "bold",
-                            bgcolor: "#388e3c",
-                            "&:hover": { bgcolor: "#2e7d32" },
+                            borderRadius: 2,
+                            fontWeight: 800,
+                            textTransform: "none",
+                            color: "#374151",
+                            borderColor: "#9ca3af",
+                            "&:hover": { bgcolor: "#f3f4f6", borderColor: "#6b7280" },
                           }}
                           disabled={showPwdForExamId === exam.id && !attemptPwdErr}
                         >
-                          Attempt Exam
+                          Attempt
                         </Button>
                       )}
                     </TableCell>
@@ -124,21 +124,22 @@ export default function ExamsTable({
 
                   {showPwdForExamId === exam.id && (
                     <TableRow>
-                      <TableCell colSpan={4}>
+                      <TableCell colSpan={4} sx={{ p: 0 }}>
+                        <Divider />
                         <Box
                           sx={{
                             p: 2,
-                            bgcolor: "#e0f7fa",
-                            borderRadius: "12px",
                             display: "flex",
                             alignItems: "center",
                             gap: 2,
                             flexWrap: "wrap",
+                            bgcolor: "#f9fafb",
                           }}
                         >
-                          <Typography variant="body2" sx={{ mr: 1, color: "#37474f" }}>
+                          <Typography variant="body2" sx={{ color: "#374151", fontWeight: 700 }}>
                             Enter exam password:
                           </Typography>
+
                           <TextField
                             autoFocus
                             size="small"
@@ -148,27 +149,44 @@ export default function ExamsTable({
                             onChange={(e) => setAttemptPwd(e.target.value)}
                             error={!!attemptPwdErr}
                             helperText={attemptPwdErr}
-                            sx={{ width: 220, "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+                            sx={{
+                              width: 240,
+                              "& .MuiOutlinedInput-root": { borderRadius: 2 },
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" && attemptPwd.trim()) {
                                 onVerify(exam.id, exam.examPassword);
                               }
                             }}
                           />
+
                           <Button
                             variant="contained"
-                            color="success"
                             onClick={() => onVerify(exam.id, exam.examPassword)}
                             disabled={!attemptPwd.trim()}
-                            sx={{ borderRadius: "8px", fontWeight: "bold" }}
+                            sx={{
+                              borderRadius: 2,
+                              fontWeight: 800,
+                              textTransform: "none",
+                              bgcolor: "#2563eb",
+                              "&:hover": { bgcolor: "#1d4ed8" },
+                            }}
                           >
                             Start Exam
                           </Button>
+
                           <Button
                             variant="outlined"
-                            color="secondary"
+                            color="inherit"
                             onClick={onCancelPwd}
-                            sx={{ borderRadius: "8px" }}
+                            sx={{
+                              borderRadius: 2,
+                              fontWeight: 700,
+                              textTransform: "none",
+                              borderColor: "#9ca3af",
+                              color: "#374151",
+                              "&:hover": { bgcolor: "#f3f4f6", borderColor: "#6b7280" },
+                            }}
                           >
                             Cancel
                           </Button>
@@ -182,36 +200,6 @@ export default function ExamsTable({
           </TableBody>
         </Table>
       </TableContainer>
-
-      {/* Pager */}
-      {rows.length > 0 && (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mt: 2,
-          }}
-        >
-          <Button
-            variant="outlined"
-            disabled={page <= 1}
-            onClick={onPrev}
-            sx={{ borderRadius: "12px", borderColor: "#4CAF50", color: "#4CAF50" }}
-          >
-            Previous
-          </Button>
-          <Typography>Page {page} of {totalPages || 1}</Typography>
-          <Button
-            variant="outlined"
-            disabled={page >= totalPages}
-            onClick={onNext}
-            sx={{ borderRadius: "12px", borderColor: "#4CAF50", color: "#4CAF50" }}
-          >
-            Next
-          </Button>
-        </Box>
-      )}
     </>
   );
 }

@@ -204,7 +204,7 @@ const StudentTakeExam = () => {
         }
 
         const examData = examSnap.data();
-        if (!examData.isAvailable || examData.intakeId !== user.intake) {
+        if ( examData.intakeId !== user.intake) {
           setSnackbarMessage("Exam not available or not assigned to your intake.");
           setSnackbarSeverity("error");
           setSnackbarOpen(true);

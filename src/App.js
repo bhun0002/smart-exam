@@ -13,6 +13,7 @@ import ManageStudents from './tutor/ManageStudents/ManageStudents';
 import ViewSubmissions from "./tutor/viewsubmission/ViewSubmissions";
 import TutorLogsList from "./tutor/logs/TutorLogsList";
 import TutorLogDetail from "./tutor/logs/TutorLogDetail";
+import SchedulesPage from "./tutor/scheduleexam/SchedulesPage";
 
 // Admin Components
 import AdminForm from "./admin/AdminForm"; // To be used for a registration route
@@ -26,6 +27,8 @@ import ProtectedRoute from "./ProtectedRoute";
 import AdminDocManager from "./admin/AdminDocManager/AdminDocManager";
 import Payments from "./admin/AdminPaymentManager/Payments";
 import AdminPaymentClaims from "./admin/AdminPaymentClaims/AdminPaymentClaims";
+// import AdminPaymentsDashboard from "./admin/AdminPaymentsDashboard/AdminPaymentsDashboard";
+// import Student360 from "./admin/Student360/Student360";
 
 // Tutor Admin Components
 import TutorAdminLogin from "./tutoradmin/TutorAdminLogin";
@@ -36,10 +39,12 @@ import ManageTutorAdmin from './tutoradmin/ManageTutorAdmin/ManageTutorAdmin';
 // Student Components
 import StudentLogin from "./student/StudentLogin";
 import StudentDashboard from "./student/StudentDashboard";
-import StudentExamList from "./student/StudentExamList";
 import StudentTakeExam from "./student/StudentTakeExam/StudentTakeExam";
+import StudentExamList from './student/StudentExamlist/StudentExamlist';
 import StudentPaymentsHome from "./student/payments/StudentPaymentsHome/StudentPaymentsHome";
 import ReportPaymentClaim from "./student/payments/pages/ReportPaymentClaim";
+import StudentSchedulesPage from "./student/ScheduleView/StudentSchedulesPage";
+import StudentGuidelines from "./student/StudentGuidelines/StudentGuidelines";
 
 const App = () => {
   return (
@@ -95,15 +100,23 @@ const App = () => {
           path="/tutor-view-logs"
           element={
             <ProtectedRoute requiredRole="tutor">
-              <TutorLogsList  />
+              <TutorLogsList />
             </ProtectedRoute>
           }
         />
-         <Route
+        <Route
           path="/tutor-view-logs/:submissionId"
           element={
             <ProtectedRoute requiredRole="tutor">
-              <TutorLogDetail  />
+              <TutorLogDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tutor-schedule-exams"
+          element={
+            <ProtectedRoute requiredRole="tutor">
+              <SchedulesPage />
             </ProtectedRoute>
           }
         />
@@ -177,6 +190,23 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        {/* <Route
+          path="/admin-payments-dashboard"
+          element={
+            <ProtectedRoute requiredRole="masterAdmin">
+              <AdminPaymentsDashboard />
+            </ProtectedRoute>
+          }
+        /> */}
+        {/* <Route
+          path="/student-360"
+          element={
+            <ProtectedRoute requiredRole="masterAdmin">
+              <Student360 />
+            </ProtectedRoute>
+          }
+        /> */}
+
         {/* Tutor Admin Routes */}
         {/* Landing Page Route */}
         <Route path="/" element={<TutorAdminLandingPage />} />
@@ -225,7 +255,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
-         <Route
+        <Route
           path="/student-payments"
           element={
             <ProtectedRoute requiredRole="student">
@@ -241,7 +271,23 @@ const App = () => {
             </ProtectedRoute>
           }
         />
-      </Routes>
+        <Route
+          path="/student-schedule"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <StudentSchedulesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student-guidelines"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <StudentGuidelines  />
+            </ProtectedRoute>
+          }
+        />
+      </Routes> 
     </Router>
   );
 };

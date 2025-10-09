@@ -1,13 +1,25 @@
 // src/admin/AdminPaymentClaims/PaymentClaims.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Typography } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../AuthContext"; // adjust path if needed
 import ClaimsFiltersBar from "./components/ClaimsFiltersBar";
 import ClaimsTable from "./components/ClaimsTable";
 import ClaimReviewDrawer from "./components/ClaimReviewDrawer";
 import { listClaims } from "./lib/firestore";
 import { claimsToCsv, downloadCsv } from "./lib/csv";
+import TopBar from "./components/TopBar";
+
+// ISO → local YYYY-MM-DD for your date inputs
+const isoToYMD = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
 
 export default function PaymentClaims() {
   const { user } = useAuth(); // gate with your ProtectedRoute (masterAdmin)
@@ -18,6 +30,20 @@ export default function PaymentClaims() {
   const [loading, setLoading] = useState(false);
   const [sel, setSel] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Seed filters from navigation state (clean URL deep-links)
+  useEffect(() => {
+    if (!location.state) return;
+    const { from, to, status } = location.state || {};
+    setFilters((prev) => ({
+      ...prev,
+      from: from ? isoToYMD(from) : prev.from,
+      to: to ? isoToYMD(to) : prev.to,
+      status: typeof status === "string" ? status : prev.status,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   async function load() {
     setLoading(true);

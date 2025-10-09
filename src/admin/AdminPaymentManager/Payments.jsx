@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box, Paper, Snackbar, Alert as MuiAlert, Typography, Stack, Button, Tooltip, Switch, FormControlLabel,
 } from "@mui/material";
@@ -43,6 +43,17 @@ const toEndOfDayLocal = (yyyy_mm_dd) => {
   if (!yyyy_mm_dd) return null;
   const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
   return new Date(y, m - 1, d, 23, 59, 59, 999);
+};
+// NEW: ISO (UTC) -> local YYYY-MM-DD (for your date textfields)
+const isoToYMD = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  // local y-m-d
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${day}`;
 };
 
 /** Build CSV text with link status columns */
@@ -103,6 +114,7 @@ const toCSV = (rows, statusMapForCSV) => {
 /* ---------------- page ---------------- */
 export default function Payments() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // data
   const [rows, setRows] = useState([]);
@@ -144,6 +156,23 @@ export default function Payments() {
   const eventOptions = useMemo(() => {
     const s = new Set(); rows.forEach((r) => r.event && s.add(r.event)); return Array.from(s);
   }, [rows]);
+
+  /* ------------ seed filters from navigation state (clean URLs) ------------ */
+  useEffect(() => {
+    if (!location.state) return;
+    const { from, to, linked } = location.state || {};
+    if (from) {
+      const ymd = isoToYMD(from);
+      if (ymd) setDateFrom(ymd);
+    }
+    if (to) {
+      const ymd = isoToYMD(to);
+      if (ymd) setDateTo(ymd);
+    }
+    // If you later add a "linked" filter, handle it here:
+    // if (typeof linked === "string") setLinkedFilter(linked);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   /* ------------ shared query builder (server) ------------ */
   const buildBaseQuery = useCallback(({ afterDoc } = {}) => {

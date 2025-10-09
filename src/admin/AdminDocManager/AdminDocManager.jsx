@@ -13,7 +13,7 @@ import RequirementsTable from "./components/RequirementsTable";
 import PaginationBar from "../../shared/PaginationBar";
 
 import { db } from "../../firebaseConfig";
-import { uploadRefFile, getSignedDocUrlLikeWorking } from "./helpers/cloudinary";
+import { uploadRequirementLocal } from "./helpers/localUploads"; // <-- POSTs to /api/uploads/...
 
 const PAGE_SIZE = 10;
 const isDeletedTrue = (v) => v === true || v === "true" || v === 1;
@@ -54,7 +54,7 @@ export default function AdminDocManager() {
     return () => unsub();
   }, []);
 
-  // Search + mandatory (counts are based on this step)
+  // Search + mandatory
   const t = search.trim().toLowerCase();
   const searchMandatoryFiltered = useMemo(() => {
     return rows.filter((r) => {
@@ -66,7 +66,7 @@ export default function AdminDocManager() {
     });
   }, [rows, t, onlyMandatory]);
 
-  // counts for Active | Deleted chip
+  // counts
   const activeCount = useMemo(
     () => searchMandatoryFiltered.filter((r) => !isDeletedTrue(r.isDeleted)).length,
     [searchMandatoryFiltered]
@@ -76,7 +76,7 @@ export default function AdminDocManager() {
     [searchMandatoryFiltered]
   );
 
-  // Final list based on showDeleted toggle
+  // show deleted toggle
   const filtered = useMemo(() => {
     return searchMandatoryFiltered.filter((r) =>
       showDeleted ? isDeletedTrue(r.isDeleted) : !isDeletedTrue(r.isDeleted)
@@ -100,7 +100,6 @@ export default function AdminDocManager() {
     setEditing(null);
     setDrawerOpen(true);
   };
-
   const openEdit = (row) => {
     if (isDeletedTrue(row.isDeleted)) {
       setSnack({ open: true, msg: "Cannot edit a deleted requirement. Restore first.", severity: "warning" });
@@ -139,14 +138,18 @@ export default function AdminDocManager() {
     }
   };
 
+  // Open reference file in a new tab
   const openRef = async (row) => {
     try {
       if (isDeletedTrue(row.isDeleted)) {
         setSnack({ open: true, msg: "Cannot open reference for deleted requirement.", severity: "warning" });
         return;
       }
-      const url = await getSignedDocUrlLikeWorking(row.refMedia);
-      if (!url) return setSnack({ open: true, msg: "No reference file uploaded.", severity: "warning" });
+      const url = row?.refMedia?.url || null;
+      if (!url) {
+        setSnack({ open: true, msg: "No reference file uploaded.", severity: "warning" });
+        return;
+      }
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (e) {
       console.error(e);
@@ -154,40 +157,29 @@ export default function AdminDocManager() {
     }
   };
 
-  // create/update (unchanged logic)
+  // Create / Update requirement (uploads always POST to /api/uploads/** via helper)
   const upsertRequirement = async ({ title, description, isMandatory, refMedia, refFile }) => {
     try {
-      let finalRefMedia = refMedia || null;
+      let finalRef = refMedia || null;
+
       if (refFile instanceof File) {
-        finalRefMedia = await uploadRefFile(refFile, {
-          folder: "student-docs/refs",
-          access_mode: "authenticated",
-        });
+        // On create we use "new" bucket; if you want real doc id, create doc first then upload to that id.
+        const uploaded = await uploadRequirementLocal(editing?.id || "new", refFile);
+        finalRef = {
+          url: uploaded.url,
+          name: uploaded.name || uploaded.filename,
+          mimetype: uploaded.mimetype,
+          size: uploaded.size,
+          storage: "local",
+        };
       }
-
-      const refForDb = finalRefMedia
-        ? {
-            public_id: finalRefMedia.public_id ?? null,
-            resource_type: finalRefMedia.resource_type ?? null,
-            format: finalRefMedia.format ?? null,
-            version:
-              typeof finalRefMedia.version === "number" || typeof finalRefMedia.version === "string"
-                ? finalRefMedia.version
-                : null,
-          }
-        : null;
-
-      const sanitize = (obj) =>
-        obj == null ? null : Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, v === undefined ? null : v]));
-
-      const refMediaClean = sanitize(refForDb);
 
       const basePayload = {
         title,
         description,
         isMandatory: !!isMandatory,
         isDeleted: false,
-        ...(refMediaClean ? { refMedia: refMediaClean } : { refMedia: null }),
+        refMedia: finalRef || null,
         updatedAt: serverTimestamp(),
       };
 

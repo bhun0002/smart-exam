@@ -1,6 +1,5 @@
 // src/admin/AdminPaymentManager/lib/firestore.js
 import {
-    addDoc,
     collection,
     doc,
     getDoc,
@@ -8,7 +7,6 @@ import {
     query,
     where,
     serverTimestamp,
-    setDoc,
     runTransaction,
   } from "firebase/firestore";
   import { db } from "../../../firebaseConfig";

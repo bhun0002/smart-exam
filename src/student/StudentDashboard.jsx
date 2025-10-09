@@ -1,165 +1,221 @@
-import React, { useEffect, useState } from "react";
-import { db } from "../firebaseConfig";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Typography, Card, CardContent, Button, CircularProgress, AppBar, Toolbar } from "@mui/material";
-import LogoutIcon from '@mui/icons-material/Logout';
-import { useAuth } from '../AuthContext';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Button,
+  Grid,
+  AppBar,
+  Toolbar,
+} from "@mui/material";
 
-const StudentDashboard = () => {
-  const { user, isLoading, logout } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [hasExam, setHasExam] = useState(false);
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import ListAltIcon from "@mui/icons-material/ListAlt";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import LogoutIcon from "@mui/icons-material/Logout";
+import { useAuth } from "../AuthContext";
+
+/**
+ * Student Dashboard
+ * Visual parity with TutorDashboard (same gradient, card shells, hover, spacing),
+ * but with student actions & routes.
+ */
+export default function StudentDashboard() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  useEffect(() => {
-    // If auth state is not loading and there's no user, redirect to login
-    if (!isLoading && !user) {
-      navigate("/student-login");
-      return;
-    }
+  // Same pastel card style pattern used on Tutor dashboard
+  const cardStyles = [
+    { backgroundColor: "#E1F5FE", hover: "#B3E5FC", iconColor: "#3498DB" }, // Available Exams
+    { backgroundColor: "#E0FFD1", hover: "#CCFFB3", iconColor: "#4CAF50" }, // My Schedule
+    { backgroundColor: "#FDE2E4", hover: "#FAD2D7", iconColor: "#E57373" }, // My Submissions
+    { backgroundColor: "#F3E5F5", hover: "#E1BEE7", iconColor: "#6A1B9A" }, // Exam Guidelines
+  ];
 
-    // Fetch exams only if a user is authenticated
-    if (user) {
-      const fetchExams = async () => {
-        try {
-          // Create a query to find exams for the user's specific intake
-          const q = query(
-            collection(db, "exams"),
-            where("intakeId", "==", user.intake),
-            where("isDeleted", "==", 0)
-          );
-          const snapshot = await getDocs(q);
-          console.log("Fetched exams:", snapshot.docs.map(doc => doc.data()));
-          // Check if any exams were found and update state
-          setHasExam(!snapshot.empty);
-        } catch (err) {
-          console.error("Error fetching exams:", err);
-        } finally {
-          setLoading(false);
-        }
-      };
+  const CardShell = ({ i, icon, title, subtitle, cta, onClick }) => (
+    <Card
+      elevation={6}
+      sx={{
+        borderRadius: "16px",
+        bgcolor: cardStyles[i].backgroundColor,
+        transition: "0.3s",
+        "&:hover": {
+          bgcolor: cardStyles[i].hover,
+          transform: "translateY(-8px)",
+          boxShadow: "0 10px 20px rgba(0,0,0,0.15)",
+        },
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+      }}
+    >
+      <CardContent
+        sx={{
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 2,
+          p: 4,
+          textAlign: "center",
+        }}
+      >
+        <Box
+          sx={{
+            bgcolor: cardStyles[i].iconColor,
+            color: "#fff",
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
+          {icon}
+        </Box>
 
-      fetchExams();
-    }
-  }, [user, isLoading, navigate]);
+        <Typography variant="h5" fontWeight="bold" color="text.primary">
+          {title}
+        </Typography>
+
+        <Typography variant="body2" color="text.secondary">
+          {subtitle}
+        </Typography>
+      </CardContent>
+
+      <Box sx={{ p: 2, pt: 0, textAlign: "center" }}>
+        <Button
+          variant="contained"
+          onClick={onClick}
+          sx={{
+            bgcolor: cardStyles[i].iconColor,
+            "&:hover": { bgcolor: cardStyles[i].iconColor },
+            color: "#fff",
+            fontWeight: "bold",
+            borderRadius: "12px",
+            py: 1.5,
+          }}
+        >
+          {cta}
+        </Button>
+      </Box>
+    </Card>
+  );
 
   const handleLogout = () => {
     logout();
-    navigate("/student-login"); // Redirect to login after logout
+    navigate("/student-login");
   };
 
-  // Show a loading spinner while fetching data or authenticating
-  if (isLoading || loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
-    <Box 
-      sx={{ 
-        minHeight: "100vh", 
-        display: "flex", 
-        flexDirection: "column", 
-        background: 'linear-gradient(135deg, #D1C4E9, #B3E5FC)', 
-        fontFamily: 'Roboto, sans-serif'
+    <Box
+      sx={{
+        background: "linear-gradient(135deg, #FFD1DC, #B2EBF2)",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {/* Top AppBar with frosted glass effect */}
-      <AppBar 
-        position="static" 
-        sx={{ 
-          bgcolor: 'rgba(255,255,255,0.6)', // Updated for more transparency
-          backdropFilter: 'blur(10px)', 
-          borderBottom: '1px solid #ccc', 
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
+      {/* Top AppBar — same placement and feel as tutor */}
+      <AppBar
+        position="static"
+        elevation={0}
+        sx={{
+          bgcolor: "rgba(255, 255, 255, 0.8)",
+          backdropFilter: "blur(10px)",
+          borderBottom: "1px solid #e0e0e0",
+          color: "#37474f",
         }}
       >
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="h6" sx={{ color: '#37474f', fontWeight: 'bold' }}>
-            Student Dashboard
+        <Toolbar>
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{ flexGrow: 1, color: "#37474f", fontWeight: "bold" }}
+          >
+            Student Panel
           </Typography>
           <Button
             color="inherit"
             onClick={handleLogout}
+            sx={{ color: "#e57373" }}
             startIcon={<LogoutIcon />}
-            sx={{ color: '#e57373', fontWeight: 'bold' }}
           >
             Logout
           </Button>
         </Toolbar>
       </AppBar>
 
-      {/* Main Content */}
-      <Box 
-        sx={{ 
-          flexGrow: 1, 
-          p: { xs: 2, md: 4 }, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center' 
-        }}
-      >
-        <Typography 
-          variant="h4" 
-          gutterBottom 
-          sx={{ 
-            fontWeight: 'bold', 
-            color: '#37474f',
-            textShadow: '1px 1px 2px rgba(0,0,0,0.1)' 
-          }}
+      {/* Main Content — title + subtitle with same rhythm */}
+      <Box sx={{ flexGrow: 1, p: { xs: 2, md: 4 } }}>
+        <Typography
+          variant="h3"
+          align="center"
+          gutterBottom
+          fontWeight="bold"
+          sx={{ mb: 2, mt: 4, color: "#37474f" }}
         >
-          Welcome, {user?.name || "Student"} 👋
+          Student Dashboard
         </Typography>
 
-        <Card 
-          sx={{ 
-            maxWidth: 500, 
-            width: '100%',
-            mt: 4, 
-            borderRadius: 4, // More rounded corners
-            p: { xs: 2, md: 3 },
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)', // More pronounced shadow
-            transition: 'transform 0.3s ease-in-out',
-            '&:hover': {
-              transform: 'translateY(-5px)' // Subtle lift on hover
-            }
-          }}
-        >
-          <CardContent sx={{ textAlign: "center" }}>
-            {hasExam ? (
-              <Button 
-                variant="contained" 
-                color="primary" 
-                onClick={() => navigate("/student-exam-list")}
-                sx={{
-                  borderRadius: '25px', // Pill-shaped button
-                  p: '12px 24px',
-                  fontWeight: 'bold',
-                  background: 'linear-gradient(45deg, #7E57C2 30%, #5C6BC0 90%)', // Gradient for a richer look
-                  boxShadow: '0 3px 5px 2px rgba(92, 107, 192, .3)',
-                  '&:hover': {
-                    transform: 'scale(1.05)',
-                    boxShadow: '0 5px 10px 3px rgba(92, 107, 192, .4)',
-                  }
-                }}
-              >
-                View Exam List
-              </Button>
-            ) : (
-              <Typography variant="body1" color="textSecondary" sx={{ color: '#757575' }}>
-                No exams available for your intake yet.
-              </Typography>
-            )}
-          </CardContent>
-        </Card>
+        <Typography variant="h6" align="center" color="text.secondary" sx={{ mb: 6 }}>
+          Access your exams, schedules and results from one place.
+        </Typography>
+
+        {/* Grid — identical sizing/spacing to tutor (centered, stretch) */}
+        <Grid container spacing={4} justifyContent="center" alignItems="stretch">
+          {/* Available Exams */}
+          <Grid item xs={12} sm={6} md={3}>
+            <CardShell
+              i={0}
+              icon={<AssignmentIcon />}
+              title="Available Exams"
+              subtitle="See exams you can take right now."
+              cta="Go to List"
+              onClick={() => navigate("/student-exam-list")}
+            />
+          </Grid>
+
+          {/* My Schedule */}
+          <Grid item xs={12} sm={6} md={3}>
+            <CardShell
+              i={1}
+              icon={<EventAvailableIcon />}
+              title="My Schedule"
+              subtitle="View scheduled exams for your course & intake."
+              cta="Open Schedule"
+              onClick={() => navigate("/student-schedule")}
+            />
+          </Grid>
+
+          {/* My Submissions */}
+          <Grid item xs={12} sm={6} md={3}>
+            <CardShell
+              i={2}
+              icon={<ListAltIcon />}
+              title="My Submissions"
+              subtitle="Review your submitted exams and results."
+              cta="Open Submissions"
+              onClick={() => navigate("/student-submissions")}
+            />
+          </Grid>
+
+          {/* Exam Guidelines */}
+          <Grid item xs={12} sm={6} md={3}>
+            <CardShell
+              i={3}
+              icon={<HelpOutlineIcon />}
+              title="Exam Guidelines"
+              subtitle="Read rules, tips and best practices."
+              cta="Open Guide"
+              onClick={() => navigate("/student-guidelines")}
+            />
+          </Grid>
+        </Grid>
       </Box>
     </Box>
   );
-};
-
-export default StudentDashboard;
+}
