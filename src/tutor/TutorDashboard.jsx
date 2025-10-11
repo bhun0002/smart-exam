@@ -1,194 +1,461 @@
+// src/tutor/TutorDashboard.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    Box,
-    Typography,
-    Card,
-    CardContent,
-    Button,
-    Grid,
-    AppBar,
-    Toolbar,
-    IconButton,
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Button,
+  Grid,
+  AppBar,
+  Toolbar,
+  IconButton,
 } from "@mui/material";
-import AddIcon from '@mui/icons-material/Add';
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import LogoutIcon from '@mui/icons-material/Logout';
-import { useAuth } from '../AuthContext';
+import BallotIcon from "@mui/icons-material/Ballot";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
+import LogoutIcon from "@mui/icons-material/Logout";
+import PeopleIcon from "@mui/icons-material/People";
+import FactCheckIcon from "@mui/icons-material/FactCheck";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import { useAuth } from "../AuthContext";
 
 const TutorDashboard = () => {
-    const navigate = useNavigate();
-    const { logout } = useAuth(); // Assuming you have a logout function
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
-    // Pastel colors for cards
-    const cardStyles = [
-        { backgroundColor: "#FFF5E1", hover: "#FFEBCC", iconColor: "#F39C12" }, // Add Exam - Soft Yellow
-        { backgroundColor: "#E1F5FE", hover: "#B3E5FC", iconColor: "#3498DB" }, // List of Exams - Soft Blue
-    ];
+  // Pastel colors for cards (added index 4 for logs card)
+  const cardStyles = [
+    { backgroundColor: "#FFF5E1", hover: "#FFEBCC", iconColor: "#F39C12" }, // Create Exam
+    { backgroundColor: "#E1F5FE", hover: "#B3E5FC", iconColor: "#3498DB" }, // Exam List
+    { backgroundColor: "#E0FFD1", hover: "#CCFFB3", iconColor: "#4CAF50" }, // Manage Students
+    { backgroundColor: "#FDE2E4", hover: "#FAD2D7", iconColor: "#E57373" }, // View Submissions
+    { backgroundColor: "#F3E5F5", hover: "#E1BEE7", iconColor: "#6A1B9A" }, // View Proctoring Logs 
+    { backgroundColor: "#FFF0F5", hover: "#FFE4EC", iconColor: "#D81B60" } // Schedule Exams
 
-    const handleLogout = () => {
-        logout();
-        navigate("/");
-    };
+  ];
 
-    return (
-        <Box
-            sx={{
-                background: 'linear-gradient(135deg, #FFD1DC, #B2EBF2)', // Pastel gradient
-                minHeight: "100vh",
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  return (
+    <Box
+      sx={{
+        background: "linear-gradient(135deg, #FFD1DC, #B2EBF2)",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Top AppBar */}
+      <AppBar
+        position="static"
+        elevation={0}
+        sx={{
+          bgcolor: "rgba(255, 255, 255, 0.8)",
+          backdropFilter: "blur(10px)",
+          borderBottom: "1px solid #e0e0e0",
+        }}
+      >
+        <Toolbar>
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{ flexGrow: 1, color: "#37474f", fontWeight: "bold" }}
+          >
+            Tutor Panel
+          </Typography>
+          <Button
+            color="inherit"
+            onClick={handleLogout}
+            sx={{ color: "#e57373" }}
+            startIcon={<LogoutIcon />}
+          >
+            Logout
+          </Button>
+        </Toolbar>
+      </AppBar>
+
+      {/* Main Content */}
+      <Box sx={{ flexGrow: 1, p: { xs: 2, md: 4 } }}>
+        <Typography
+          variant="h3"
+          align="center"
+          gutterBottom
+          fontWeight="bold"
+          sx={{ mb: 2, mt: 4, color: "#37474f" }}
+        >
+          Tutor Dashboard
+        </Typography>
+        <Typography
+          variant="h6"
+          align="center"
+          color="text.secondary"
+          sx={{ mb: 6 }}
+        >
+          Manage your exams and student progress from one place.
+        </Typography>
+
+        <Grid container spacing={4} justifyContent="center" alignItems="stretch">
+          {/* Create Exam */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={6}
+              sx={{
+                borderRadius: "16px",
+                bgcolor: cardStyles[0].backgroundColor,
+                transition: "0.3s",
+                "&:hover": {
+                  bgcolor: cardStyles[0].hover,
+                  transform: "translateY(-8px)",
+                  boxShadow: "0 10px 20px rgba(0,0,0,0.15)",
+                },
                 display: "flex",
                 flexDirection: "column",
-            }}
-        >
-            {/* Top AppBar */}
-            <AppBar
-                position="static"
-                elevation={0}
-                sx={{
-                    bgcolor: 'rgba(255, 255, 255, 0.8)',
-                    backdropFilter: 'blur(10px)',
-                    borderBottom: '1px solid #e0e0e0',
-                }}
+                height: "100%",
+              }}
             >
-                <Toolbar>
-                    <Typography
-                        variant="h6"
-                        component="div"
-                        sx={{ flexGrow: 1, color: '#37474f', fontWeight: 'bold' }}
-                    >
-                        Tutor Panel
-                    </Typography>
-                    <Button
-                        color="inherit"
-                        onClick={handleLogout}
-                        sx={{ color: '#e57373' }}
-                        startIcon={<LogoutIcon />}
-                    >
-                        Logout
-                    </Button>
-                </Toolbar>
-            </AppBar>
-
-            {/* Main Content Box */}
-            <Box sx={{ flexGrow: 1, p: { xs: 2, md: 4 } }}>
-                <Typography
-                    variant="h3"
-                    align="center"
-                    gutterBottom
-                    fontWeight="bold"
-                    sx={{ mb: 2, mt: 4, color: "#37474f" }}
+              <CardContent
+                sx={{
+                  flexGrow: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                  p: 4,
+                }}
+              >
+                <IconButton
+                  sx={{ bgcolor: cardStyles[0].iconColor, color: "#fff", mb: 1 }}
                 >
-                    Tutor Dashboard
+                  <BallotIcon />
+                </IconButton>
+                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                  Create a New Exam
                 </Typography>
-                <Typography
-                    variant="h6"
-                    align="center"
-                    color="text.secondary"
-                    sx={{ mb: 6 }}
+                <Typography variant="body2" align="center" color="text.secondary">
+                  Build a new examination with multiple question types and media.
+                </Typography>
+              </CardContent>
+              <Box sx={{ p: 2, pt: 0, textAlign: "center" }}>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate("/tutor-create-exam")}
+                  sx={{
+                    bgcolor: cardStyles[0].iconColor,
+                    "&:hover": { bgcolor: "#E67E22" },
+                    color: "#fff",
+                    fontWeight: "bold",
+                    borderRadius: "12px",
+                    py: 1.5,
+                  }}
                 >
-                    Manage your exams and student progress from one place.
+                  Go to Form
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
+
+          {/* Exam List */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={6}
+              sx={{
+                borderRadius: "16px",
+                bgcolor: cardStyles[1].backgroundColor,
+                transition: "0.3s",
+                "&:hover": {
+                  bgcolor: cardStyles[1].hover,
+                  transform: "translateY(-8px)",
+                  boxShadow: "0 10px 20px rgba(0,0,0,0.15)",
+                },
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+              }}
+            >
+              <CardContent
+                sx={{
+                  flexGrow: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                  p: 4,
+                }}
+              >
+                <IconButton
+                  sx={{ bgcolor: cardStyles[1].iconColor, color: "#fff", mb: 1 }}
+                >
+                  <FormatListBulletedIcon />
+                </IconButton>
+                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                  View Exams List
                 </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                  Review, edit, and manage all your existing examinations.
+                </Typography>
+              </CardContent>
+              <Box sx={{ p: 2, pt: 0, textAlign: "center" }}>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate("/tutor-exam-list")}
+                  sx={{
+                    bgcolor: cardStyles[1].iconColor,
+                    "&:hover": { bgcolor: "#2980B9" },
+                    color: "#fff",
+                    fontWeight: "bold",
+                    borderRadius: "12px",
+                    py: 1.5,
+                  }}
+                >
+                  View Exams
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
 
-                <Grid container spacing={4} justifyContent="center" alignItems="stretch">
-                    {/* Add Exam Card */}
-                    <Grid item xs={12} sm={6} md={4}>
-                        <Card
-                            elevation={6}
-                            sx={{
-                                borderRadius: '16px',
-                                bgcolor: cardStyles[0].backgroundColor,
-                                transition: "0.3s",
-                                "&:hover": {
-                                    bgcolor: cardStyles[0].hover,
-                                    transform: "translateY(-8px)",
-                                    boxShadow: '0 10px 20px rgba(0,0,0,0.15)',
-                                },
-                                display: 'flex',
-                                flexDirection: 'column',
-                                height: '100%',
-                            }}
-                        >
-                            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, p: 4 }}>
-                                <IconButton sx={{ bgcolor: cardStyles[0].iconColor, color: '#fff', mb: 1 }}>
-                                    <AddIcon />
-                                </IconButton>
-                                <Typography variant="h5" fontWeight="bold" color="text.primary">
-                                    Create a New Exam
-                                </Typography>
-                                <Typography variant="body2" align="center" color="text.secondary">
-                                    Build a new examination with multiple question types and media.
-                                </Typography>
-                            </CardContent>
-                            <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
-                                <Button
-                                    variant="contained"
-                                    onClick={() => navigate("/tutor-create-exam")}
-                                    sx={{
-                                        bgcolor: cardStyles[0].iconColor,
-                                        '&:hover': { bgcolor: '#E67E22' },
-                                        color: '#fff',
-                                        fontWeight: 'bold',
-                                        borderRadius: '12px',
-                                        py: 1.5,
-                                    }}
-                                >
-                                    Go to Form
-                                </Button>
-                            </Box>
-                        </Card>
-                    </Grid>
+          {/* Manage Students */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={6}
+              sx={{
+                borderRadius: "16px",
+                bgcolor: cardStyles[2].backgroundColor,
+                transition: "0.3s",
+                "&:hover": {
+                  bgcolor: cardStyles[2].hover,
+                  transform: "translateY(-8px)",
+                  boxShadow: "0 10px 20px rgba(0,0,0,0.15)",
+                },
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+              }}
+            >
+              <CardContent
+                sx={{
+                  flexGrow: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                  p: 4,
+                }}
+              >
+                <IconButton
+                  sx={{ bgcolor: cardStyles[2].iconColor, color: "#fff", mb: 1 }}
+                >
+                  <PeopleIcon />
+                </IconButton>
+                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                  Manage Students
+                </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                  Approve, edit, and oversee your registered students.
+                </Typography>
+              </CardContent>
+              <Box sx={{ p: 2, pt: 0, textAlign: "center" }}>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate("/tutor-manage-students")}
+                  sx={{
+                    bgcolor: cardStyles[2].iconColor,
+                    "&:hover": { bgcolor: "#4CAF50" },
+                    color: "#fff",
+                    fontWeight: "bold",
+                    borderRadius: "12px",
+                    py: 1.5,
+                  }}
+                >
+                  Manage Students
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
 
-                    {/* List of Exams Card */}
-                    <Grid item xs={12} sm={6} md={4}>
-                        <Card
-                            elevation={6}
-                            sx={{
-                                borderRadius: '16px',
-                                bgcolor: cardStyles[1].backgroundColor,
-                                transition: "0.3s",
-                                "&:hover": {
-                                    bgcolor: cardStyles[1].hover,
-                                    transform: "translateY(-8px)",
-                                    boxShadow: '0 10px 20px rgba(0,0,0,0.15)',
-                                },
-                                display: 'flex',
-                                flexDirection: 'column',
-                                height: '100%',
-                            }}
-                        >
-                            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, p: 4 }}>
-                                <IconButton sx={{ bgcolor: cardStyles[1].iconColor, color: '#fff', mb: 1 }}>
-                                    <FormatListBulletedIcon />
-                                </IconButton>
-                                <Typography variant="h5" fontWeight="bold" color="text.primary">
-                                    View Exams List
-                                </Typography>
-                                <Typography variant="body2" align="center" color="text.secondary">
-                                    Review, edit, and manage all your existing examinations.
-                                </Typography>
-                            </CardContent>
-                            <Box sx={{ p: 2, pt: 0, textAlign: 'center' }}>
-                                <Button
-                                    variant="contained"
-                                    onClick={() => navigate("/tutor-exam-list")}
-                                    sx={{
-                                        bgcolor: cardStyles[1].iconColor,
-                                        '&:hover': { bgcolor: '#2980B9' },
-                                        color: '#fff',
-                                        fontWeight: 'bold',
-                                        borderRadius: '12px',
-                                        py: 1.5,
-                                    }}
-                                >
-                                    View Exams
-                                </Button>
-                            </Box>
-                        </Card>
-                    </Grid>
-                </Grid>
-            </Box>
-        </Box>
-    );
+          {/* View Submissions */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={6}
+              sx={{
+                borderRadius: "16px",
+                bgcolor: cardStyles[3].backgroundColor,
+                transition: "0.3s",
+                "&:hover": {
+                  bgcolor: cardStyles[3].hover,
+                  transform: "translateY(-8px)",
+                  boxShadow: "0 10px 20px rgba(0,0,0,0.15)",
+                },
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+              }}
+            >
+              <CardContent
+                sx={{
+                  flexGrow: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                  p: 4,
+                }}
+              >
+                <IconButton
+                  sx={{ bgcolor: cardStyles[3].iconColor, color: "#fff", mb: 1 }}
+                >
+                  <FactCheckIcon />
+                </IconButton>
+                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                  View Submissions
+                </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                  Review students’ responses, status, and grades.
+                </Typography>
+              </CardContent>
+              <Box sx={{ p: 2, pt: 0, textAlign: "center" }}>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate("/tutor-view-submissions")}
+                  sx={{
+                    bgcolor: cardStyles[3].iconColor,
+                    "&:hover": { bgcolor: "#ef5350" },
+                    color: "#fff",
+                    fontWeight: "bold",
+                    borderRadius: "12px",
+                    py: 1.5,
+                  }}
+                >
+                  Open Submissions
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
+
+          {/* View Proctoring Logs (uniform card) */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={6}
+              sx={{
+                borderRadius: "16px",
+                bgcolor: cardStyles[4].backgroundColor,
+                transition: "0.3s",
+                "&:hover": {
+                  bgcolor: cardStyles[4].hover,
+                  transform: "translateY(-8px)",
+                  boxShadow: "0 10px 20px rgba(0,0,0,0.15)",
+                },
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+              }}
+            >
+              <CardContent
+                sx={{
+                  flexGrow: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                  p: 4,
+                }}
+              >
+                <IconButton
+                  sx={{ bgcolor: cardStyles[4].iconColor, color: "#fff", mb: 1 }}
+                >
+                  <VisibilityIcon />
+                </IconButton>
+                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                  View Proctoring Logs
+                </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                  Monitor exam integrity with real-time activity logs and analytics.
+                </Typography>
+              </CardContent>
+              <Box sx={{ p: 2, pt: 0, textAlign: "center" }}>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate("/tutor-view-logs")}
+                  sx={{
+                    bgcolor: cardStyles[4].iconColor,
+                    "&:hover": { bgcolor: "#4a148c" },
+                    color: "#fff",
+                    fontWeight: "bold",
+                    borderRadius: "12px",
+                    py: 1.5,
+                  }}
+                >
+                  Open Logs
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
+
+           {/* View Proctoring Logs (uniform card) */}
+           <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={6}
+              sx={{
+                borderRadius: "16px",
+                bgcolor: cardStyles[5].backgroundColor,
+                transition: "0.3s",
+                "&:hover": {
+                  bgcolor: cardStyles[5].hover,
+                  transform: "translateY(-8px)",
+                  boxShadow: "0 10px 20px rgba(0,0,0,0.15)",
+                },
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+              }}
+            >
+              <CardContent
+                sx={{
+                  flexGrow: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                  p: 4,
+                }}
+              >
+                <IconButton
+                  sx={{ bgcolor: cardStyles[5].iconColor, color: "#fff", mb: 1 }}
+                >
+                  <VisibilityIcon />
+                </IconButton>
+                <Typography variant="h5" fontWeight="bold" color="text.primary">
+                Schedule Exams
+                </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                Plan, view, and manage exam schedules effortlessly.
+                </Typography>
+              </CardContent>
+              <Box sx={{ p: 2, pt: 0, textAlign: "center" }}>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate("/tutor-schedule-exams")}
+                  sx={{
+                    bgcolor: cardStyles[4].iconColor,
+                    "&:hover": { bgcolor: "#4a148c" },
+                    color: "#fff",
+                    fontWeight: "bold",
+                    borderRadius: "12px",
+                    py: 1.5,
+                  }}
+                >
+                  Open Scheduler
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
+        </Grid>
+      </Box>
+    </Box>
+  );
 };
 
 export default TutorDashboard;

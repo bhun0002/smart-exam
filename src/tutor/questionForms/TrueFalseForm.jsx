@@ -1,4 +1,4 @@
-// src/components/TrueFalseForm.jsx
+// src/tutor/questionForms/TrueFalseForm.jsx
 
 import React from "react";
 import {
@@ -15,21 +15,20 @@ import {
     FormHelperText,
 } from "@mui/material";
 import { Delete as DeleteIcon } from "@mui/icons-material";
+import PointsField from "./PointsField";
+import useMediaPreview, { isVideoFromMedia } from "../../shared/useMediaPreview";
 
-// ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
+// Accept `index`, `fieldErrors`, and `setFieldErrors` props
 const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
-    const [preview, setPreview] = React.useState(null);
+    const preview = useMediaPreview(question.media);   // 🔄 derive preview via shared hook
     const fileInputRef = React.useRef(null);
-    
-    // UPDATED: Function to handle changes and clear errors
+
+    // Handle changes and clear errors
     const handleQuestionChange = (field, value) => {
         if (readonly) return;
         onChange({ ...question, [field]: value });
 
-        // Construct the unique ID for the field
         const fieldId = `question-${index}-${field}`;
-
-        // Clear the error for this field if it exists
         if (fieldErrors[fieldId]) {
             setFieldErrors(prev => {
                 const newErrors = { ...prev };
@@ -44,33 +43,21 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
+    // 🔄 preview is derived by the hook; no manual FileReader here
     const handleMediaChange = (file) => {
         if (readonly) return;
         onChange({
             ...question,
             media: file,
         });
-
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreview(reader.result);
-            };
-            reader.readAsDataURL(file);
-        } else {
-            setPreview(null);
-        }
     };
 
-    React.useEffect(() => {
-        if (question.media && !(question.media instanceof File)) {
-            setPreview(question.media);
-        }
-    }, [question.media]);
-    
     // Define unique IDs based on the question index
     const questionId = `question-${index}-question-text`;
     const answerId = `question-${index}-answer`;
+    const pointsId = `question-${index}-points`;
+
+    const isVideo = () => isVideoFromMedia(question.media);
 
     return (
         <Card
@@ -90,18 +77,17 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                     True / False
                 </Typography>
-                
+
                 <TextField
                     fullWidth
                     label="Question Text"
                     multiline
-                    rows={2}
+                    minRows={3}
                     value={question.question || ""}
                     onChange={(e) => handleQuestionChange("question", e.target.value)}
                     margin="normal"
                     variant="outlined"
                     disabled={readonly}
-                    // ADDED: `id`, `error`, and `helperText` props for validation
                     id={questionId}
                     error={!!fieldErrors[questionId]}
                     helperText={fieldErrors[questionId]}
@@ -115,7 +101,7 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                         },
                     }}
                 />
-                
+
                 {!readonly && (
                     <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
                         <TextField
@@ -134,13 +120,13 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                             }}
                         />
                         {preview && (
-                            <IconButton 
-                                color="error" 
+                            <IconButton
+                                color="error"
                                 onClick={deleteMedia}
-                                sx={{ 
-                                    p: 1, 
-                                    backgroundColor: '#ffebee', 
-                                    '&:hover': { backgroundColor: '#ffcdd2' } 
+                                sx={{
+                                    p: 1,
+                                    backgroundColor: '#ffebee',
+                                    '&:hover': { backgroundColor: '#ffcdd2' }
                                 }}
                             >
                                 <DeleteIcon />
@@ -148,10 +134,10 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                         )}
                     </Box>
                 )}
-                
+
                 {preview && (
                     <Box sx={{ mt: 2, textAlign: "center", border: '1px dashed #bdbdbd', p: 2, borderRadius: '12px' }}>
-                        {question.media?.type?.startsWith("video") ? (
+                        {isVideo() ? (
                             <video
                                 src={preview}
                                 controls
@@ -166,17 +152,19 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                         )}
                     </Box>
                 )}
-                
-                <FormControl 
-                    fullWidth 
+
+                <FormControl
+                    fullWidth
                     sx={{ mt: 3 }}
-                    // ADDED: `error` prop for validation
                     error={!!fieldErrors[answerId]}
+                    onKeyDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
                 >
                     <InputLabel id="correct-answer-label">Correct Answer</InputLabel>
                     <Select
                         labelId="correct-answer-label"
-                        // ADDED: `id` prop for validation
                         id={answerId}
                         value={question.answer || ""}
                         label="Correct Answer"
@@ -196,9 +184,24 @@ const TrueFalseForm = ({ question, onChange, readonly = false, index, fieldError
                         <MenuItem value="True">True</MenuItem>
                         <MenuItem value="False">False</MenuItem>
                     </Select>
-                    {/* ADDED: FormHelperText to display validation error */}
                     <FormHelperText>{fieldErrors[answerId]}</FormHelperText>
                 </FormControl>
+                <PointsField
+                    value={question.points}
+                    id={pointsId}
+                    onChange={(e) =>
+                        handleQuestionChange(
+                          "points",
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                    index={index}
+                    fieldErrors={fieldErrors}
+                    setFieldErrors={setFieldErrors}
+                    readonly={readonly}
+                    suggestions={[1, 2, 5, 10]} // e.g. per type
+                />
+
             </CardContent>
         </Card>
     );

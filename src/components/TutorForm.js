@@ -45,7 +45,7 @@ const TutorForm = ({ examData = null, readonly = false }) => {
       { type: "multiple-choice", question: "", options: ["", ""], answer: "", media: null },
     ]
   );
-  const [showScroll, setShowScroll] = useState(false);
+  const [showScroll] = useState(false);
   const [questionNumber, setQuestionNumber] = useState("");
   // New state for handling in-line validation error
   const [searchError, setSearchError] = useState("");
@@ -59,14 +59,14 @@ const TutorForm = ({ examData = null, readonly = false }) => {
     }
   }, [examData]);
 
-  // Handle "Go to Top" button visibility
-  const checkScrollTop = () => {
-    if (!showScroll && window.pageYOffset > 400) {
-      setShowScroll(true);
-    } else if (showScroll && window.pageYOffset <= 400) {
-      setShowScroll(false);
-    }
-  };
+  // // Handle "Go to Top" button visibility
+  // const checkScrollTop = () => {
+  //   if (!showScroll && window.pageYOffset > 400) {
+  //     setShowScroll(true);
+  //   } else if (showScroll && window.pageYOffset <= 400) {
+  //     setShowScroll(false);
+  //   }
+  // };
 
   const scrollTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -90,12 +90,12 @@ const TutorForm = ({ examData = null, readonly = false }) => {
     }
   };
 
-  useEffect(() => {
-    window.addEventListener('scroll', checkScrollTop);
-    return () => {
-      window.removeEventListener('scroll', checkScrollTop);
-    };
-  }, [showScroll]);
+  // useEffect(() => {
+  //   window.addEventListener('scroll', checkScrollTop);
+  //   return () => {
+  //     window.removeEventListener('scroll', checkScrollTop);
+  //   };
+  // }, []);
 
   // Add question
   const addQuestion = (type) => {

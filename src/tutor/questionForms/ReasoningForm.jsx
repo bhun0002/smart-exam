@@ -1,4 +1,4 @@
-// src/components/ReasoningForm.jsx
+// src/tutor/questionForms/ReasoningForm.jsx
 
 import React from "react";
 import {
@@ -10,21 +10,21 @@ import {
     Typography,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import PointsField from "./PointsField";
+import useMediaPreview, { isVideoFromMedia } from "../../shared/useMediaPreview";
 
-// ADDED: Accept `index`, `fieldErrors`, and `setFieldErrors` props
+// Accept `index`, `fieldErrors`, and `setFieldErrors` props
 const ReasoningForm = ({ question, onChange, readonly = false, index, fieldErrors, setFieldErrors }) => {
-    const [preview, setPreview] = React.useState(null);
+    // 🔄 NEW: derive preview via shared hook (supports File, string URL, or Cloudinary IDs)
+    const preview = useMediaPreview(question.media);
     const fileInputRef = React.useRef(null);
 
-    // UPDATED: Function to handle changes and clear errors
+    // Handle changes and clear errors
     const handleQuestionChange = (field, value) => {
         if (readonly) return;
         onChange({ ...question, [field]: value });
 
-        // Construct the unique ID for the field
         const fieldId = `question-${index}-${field}`;
-
-        // Clear the error for this field if it exists
         if (fieldErrors[fieldId]) {
             setFieldErrors(prev => {
                 const newErrors = { ...prev };
@@ -39,35 +39,21 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    // Update media file and preview
+    // 🔄 UPDATED: preview is derived by the hook; no manual FileReader here
     const handleMediaChange = (file) => {
         if (readonly) return;
         onChange({
             ...question,
             media: file,
         });
-
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreview(reader.result);
-            };
-            reader.readAsDataURL(file);
-        } else {
-            setPreview(null);
-        }
     };
 
-    // Set preview if examData has media
-    React.useEffect(() => {
-        if (question.media && !(question.media instanceof File)) {
-            setPreview(question.media);
-        }
-    }, [question.media]);
-    
     // Define unique IDs based on the question index
     const questionId = `question-${index}-question-text`;
     const answerId = `question-${index}-answer`;
+    const pointsId = `question-${index}-points`;
+
+    const isVideo = () => isVideoFromMedia(question.media);
 
     return (
         <Card
@@ -90,14 +76,13 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                 <TextField
                     fullWidth
                     label="Question Text"
-                    multiline
-                    rows={2}
+                    multiline // Enable multiline
+                    minRows={5} // Start with 5 rows for scenario/problem description
                     value={question.question || ""}
                     onChange={(e) => handleQuestionChange("question", e.target.value)}
                     margin="normal"
                     variant="outlined"
                     disabled={readonly}
-                    // ADDED: `id`, `error`, and `helperText` props for validation
                     id={questionId}
                     error={!!fieldErrors[questionId]}
                     helperText={fieldErrors[questionId]}
@@ -130,13 +115,13 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                             }}
                         />
                         {preview && (
-                            <IconButton 
-                                color="error" 
+                            <IconButton
+                                color="error"
                                 onClick={deleteMedia}
-                                sx={{ 
-                                    p: 1, 
-                                    backgroundColor: '#ffebee', 
-                                    '&:hover': { backgroundColor: '#ffcdd2' } 
+                                sx={{
+                                    p: 1,
+                                    backgroundColor: '#ffebee',
+                                    '&:hover': { backgroundColor: '#ffcdd2' }
                                 }}
                             >
                                 <DeleteIcon />
@@ -148,7 +133,7 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                 {/* Preview for image/video */}
                 {preview && (
                     <Box sx={{ mt: 2, textAlign: "center", border: '1px dashed #bdbdbd', p: 2, borderRadius: '12px' }}>
-                        {question.media.type?.startsWith("video") ? (
+                        {isVideo() ? (
                             <video
                                 src={preview}
                                 controls
@@ -167,16 +152,14 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                 <TextField
                     fullWidth
                     label="Correct Answer"
-                    multiline
-                    rows={4}
+                    multiline // Enable multiline
+                    minRows={7} // Start with 7 rows for detailed reasoning/solution
                     value={question.answer || ""}
                     onChange={(e) => handleQuestionChange("answer", e.target.value)}
                     margin="normal"
                     variant="outlined"
-                    // UPDATED: `helperText` to display validation error first, then the static text
                     helperText={fieldErrors[answerId] || "Provide a detailed explanation or a sample correct answer."}
                     disabled={readonly}
-                    // ADDED: `id` and `error` props for validation
                     id={answerId}
                     error={!!fieldErrors[answerId]}
                     sx={{
@@ -190,6 +173,22 @@ const ReasoningForm = ({ question, onChange, readonly = false, index, fieldError
                         },
                     }}
                 />
+                <PointsField
+                    value={question.points}
+                    id={pointsId}
+                    onChange={(e) =>
+                        handleQuestionChange(
+                          "points",
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                    index={index}
+                    fieldErrors={fieldErrors}
+                    setFieldErrors={setFieldErrors}
+                    readonly={readonly}
+                    suggestions={[1, 2, 5, 10]} // e.g. per type
+                />
+
             </CardContent>
         </Card>
     );
