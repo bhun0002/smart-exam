@@ -49,6 +49,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
   const [fieldErrors, setFieldErrors] = useState({});
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [isSnackbarOpen, setIsSnackbarOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // intakes
   const { intakes, error: intakesErr } = useIntakes();
@@ -56,6 +57,15 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
   // ▼ NEW: courses (mirrors useIntakes behavior, but inline here to keep changes localized)
   const [courses, setCourses] = useState([]);
   const [coursesErr, setCoursesErr] = useState("");
+
+  useEffect(() => {
+    document.body.style.overflow = isSaving ? "hidden" : "auto";
+  
+    // cleanup: if user navigates away while saving, reset
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [isSaving]);
 
   useEffect(() => {
     const loadCourses = async () => {
@@ -152,13 +162,13 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
           type: file.type,
           size: file.size,
         });
-      } catch (_) {}
+      } catch (_) { }
 
       const signUrl = `${base}/sign-upload`;
       const signParams = { folder: "exam-media", access_mode: "authenticated" };
       try {
         console.log("[uploadMedia] GET", signUrl, "params:", signParams);
-      } catch (_) {}
+      } catch (_) { }
 
       const signRes = await axios.get(signUrl, { params: signParams });
       const { timestamp, signature, cloudName, apiKey, folder, access_mode } = signRes.data || {};
@@ -172,7 +182,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
           folder,
           access_mode,
         });
-      } catch (_) {}
+      } catch (_) { }
 
       const formData = new FormData();
       formData.append("file", file);
@@ -188,19 +198,19 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
           fdPreview[k] = k === "file" ? `[File:${file.type}, ${file.size}B]` : v;
         }
         console.log("[uploadMedia] POST formData:", fdPreview);
-      } catch (_) {}
+      } catch (_) { }
 
       const uploadEndpoint = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
       try {
         console.log("[uploadMedia] POST", uploadEndpoint);
-      } catch (_) {}
+      } catch (_) { }
 
       const res = await axios.post(uploadEndpoint, formData);
 
       const { public_id, resource_type, format, version, access_mode: storedAccessMode } = res.data || {};
       try {
         console.log("[uploadMedia] upload-response:", { public_id, resource_type, format, version, access_mode: storedAccessMode });
-      } catch (_) {}
+      } catch (_) { }
 
       if (!public_id) throw new Error("Missing Cloudinary public_id");
 
@@ -384,6 +394,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     }
 
     try {
+      setIsSaving(true);
       // upload any new media files
       const withMedia = await Promise.all(
         questions.map(async (q) => {
@@ -394,6 +405,13 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
           return q;
         })
       );
+
+      // NEW: if any upload failed (identifiers === null), stop and show error
+      if (withMedia.some((q) => q.media === null)) {
+        setFormError("Failed to upload one or more media files. Please try again.");
+        setIsSaving(false);
+        return;
+      }
 
       // cleanup non-MCQ types
       const cleaned = withMedia.map((q) => {
@@ -424,6 +442,7 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
         setSnackbarMessage("Exam saved successfully!");
       }
 
+      setIsSaving(false);
       setIsSnackbarOpen(true);
 
       if (onSaveSuccess) {
@@ -434,119 +453,225 @@ const TutorExamForm = ({ examData = null, readonly = false, onSaveSuccess }) => 
     } catch (err) {
       console.error("Firestore error:", err);
       setFormError("Error saving exam! " + err.message);
+      setIsSaving(false);
     }
   };
 
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   if (readonly) return;
+  //   setFormError("");
+  //   setFieldErrors({});
+
+  //   const v = validateQuestions();
+  //   if (v) {
+  //     setFormError(v.message);
+  //     setFieldErrors({ [v.fieldId]: v.message });
+  //     const el = document.getElementById(v.fieldId);
+  //     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  //     return;
+  //   }
+
+  //   try {
+  //     // upload any new media files
+  //     const withMedia = await Promise.all(
+  //       questions.map(async (q) => {
+  //         if (q.media instanceof File) {
+  //           const identifiers = await uploadMedia(q.media);
+  //           return { ...q, media: identifiers };
+  //         }
+  //         return q;
+  //       })
+  //     );
+
+  //     // cleanup non-MCQ types
+  //     const cleaned = withMedia.map((q) => {
+  //       if (["true-false", "fill-blanks", "short-answer", "reasoning"].includes(q.type)) {
+  //         const { options, ...rest } = q;
+  //         return rest;
+  //       }
+  //       return q;
+  //     });
+
+  //     const payload = {
+  //       title,
+  //       duration: Number(duration),
+  //       intakeId: selectedIntake,
+  //       // ▼ NEW: save courseId
+  //       courseId: selectedCourse,
+  //       isDeleted: 0,
+  //       questions: cleaned,
+  //       totalPoints,
+  //     };
+
+  //     if (examData?.id) {
+  //       const ref = doc(db, "exams", examData.id);
+  //       await updateDoc(ref, { ...payload, updatedAt: serverTimestamp() });
+  //       setSnackbarMessage("Exam updated successfully!");
+  //     } else {
+  //       await addDoc(collection(db, "exams"), { ...payload, createdAt: serverTimestamp() });
+  //       setSnackbarMessage("Exam saved successfully!");
+  //     }
+
+  //     setIsSnackbarOpen(true);
+
+  //     if (onSaveSuccess) {
+  //       setTimeout(() => onSaveSuccess(), 2000);
+  //     } else {
+  //       setTimeout(() => navigate("/tutor-exam-list"), 2000);
+  //     }
+  //   } catch (err) {
+  //     console.error("Firestore error:", err);
+  //     setFormError("Error saving exam! " + err.message);
+  //   }
+  // };
+
   return (
-    <Box
-      sx={{
-        background: "linear-gradient(135deg, #FFD1DC, #B2EBF2)",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        py: { xs: 2, md: 4 },
-      }}
-    >
-      <Paper elevation={12} sx={{ p: { xs: 3, md: 5 }, borderRadius: "24px", bgcolor: "#fff" }}>
-        <TopBar
-          readonly={readonly}
-          examData={examData}
-          onBack={() => navigate("/tutor-dashboard")}
-        />
-
-        <ExamMetaForm
-          readonly={readonly}
-          title={title}
-          setTitle={setTitle}
-          duration={duration}
-          setDuration={setDuration}
-          selectedIntake={selectedIntake}
-          setSelectedIntake={setSelectedIntake}
-          intakes={intakes}
-          intakesError={intakesErr}
-          // ▼ NEW: pass course props (ExamMetaForm can render Course dropdown like Intake)
-          selectedCourse={selectedCourse}
-          setSelectedCourse={setSelectedCourse}
-          courses={courses}
-          coursesError={coursesErr}
-          fieldErrors={fieldErrors}
-          setFieldErrors={setFieldErrors}
-          totalPoints={totalPoints}
-        />
-
-        {!readonly && (
-          <AddQuestionButtons
-            onAdd={addQuestion}
-            questionNumber={questionNumber}
-            setQuestionNumber={(v) => {
-              setQuestionNumber(v);
-              scrollToQuestion(v);
-            }}
-            searchError={searchError}
-          />
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <QuestionsList
-            questions={questions}
-            setQuestions={setQuestions}
+    <>
+      <Box
+        sx={{
+          background: "linear-gradient(135deg, #FFD1DC, #B2EBF2)",
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          py: { xs: 2, md: 4 },
+        }}
+      >
+        <Paper elevation={12} sx={{ p: { xs: 3, md: 5 }, borderRadius: "24px", bgcolor: "#fff" }}>
+          <TopBar
             readonly={readonly}
+            examData={examData}
+            onBack={() => navigate("/tutor-dashboard")}
+          />
+
+          <ExamMetaForm
+            readonly={readonly}
+            title={title}
+            setTitle={setTitle}
+            duration={duration}
+            setDuration={setDuration}
+            selectedIntake={selectedIntake}
+            setSelectedIntake={setSelectedIntake}
+            intakes={intakes}
+            intakesError={intakesErr}
+            // ▼ NEW: pass course props (ExamMetaForm can render Course dropdown like Intake)
+            selectedCourse={selectedCourse}
+            setSelectedCourse={setSelectedCourse}
+            courses={courses}
+            coursesError={coursesErr}
             fieldErrors={fieldErrors}
             setFieldErrors={setFieldErrors}
-            onDelete={deleteQuestion}
-            onMoveUp={(i) => moveQuestion(i, -1)}
-            onMoveDown={(i) => moveQuestion(i, 1)}
-            QuestionRenderer={QuestionRenderer}
+            totalPoints={totalPoints}
           />
 
-          {formError && (
-            <MotionDiv
-              animate={{ backgroundColor: ["#fbe9e7", "#f4b39b", "#fbe9e7"] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-              style={{ marginTop: 16, textAlign: "center", borderRadius: 8, padding: 8 }}
-            >
-              {formError}
-            </MotionDiv>
-          )}
-
           {!readonly && (
-            <>
-              <AddQuestionButtons
-                onAdd={addQuestion}
-                questionNumber={questionNumber}
-                setQuestionNumber={(v) => {
-                  setQuestionNumber(v);
-                  scrollToQuestion(v);
-                }}
-                searchError={searchError}
-              />
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}>
-                <TopBar.GoToListButton onClick={() => navigate("/tutor-exam-list")} />
-                <TopBar.SaveButton label={examData ? "Save Changes" : "Save Exam"} />
-              </Box>
-            </>
+            <AddQuestionButtons
+              onAdd={addQuestion}
+              questionNumber={questionNumber}
+              setQuestionNumber={(v) => {
+                setQuestionNumber(v);
+                scrollToQuestion(v);
+              }}
+              searchError={searchError}
+            />
           )}
-        </form>
-      </Paper>
 
-      <TopBar.ScrollTopFab show={showScroll} onClick={scrollTop} />
+          <form onSubmit={handleSubmit}>
+            <QuestionsList
+              questions={questions}
+              setQuestions={setQuestions}
+              readonly={readonly}
+              fieldErrors={fieldErrors}
+              setFieldErrors={setFieldErrors}
+              onDelete={deleteQuestion}
+              onMoveUp={(i) => moveQuestion(i, -1)}
+              onMoveDown={(i) => moveQuestion(i, 1)}
+              QuestionRenderer={QuestionRenderer}
+            />
 
-      <Snackbar
-        open={isSnackbarOpen}
-        autoHideDuration={4000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <motion.div
-          animate={{ backgroundColor: ["#c8e6c9", "#a5d6a7", "#c8e6c9"] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            {formError && (
+              <MotionDiv
+                animate={{ backgroundColor: ["#fbe9e7", "#f4b39b", "#fbe9e7"] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                style={{ marginTop: 16, textAlign: "center", borderRadius: 8, padding: 8 }}
+              >
+                {formError}
+              </MotionDiv>
+            )}
+
+            {!readonly && (
+              <>
+                <AddQuestionButtons
+                  onAdd={addQuestion}
+                  questionNumber={questionNumber}
+                  setQuestionNumber={(v) => {
+                    setQuestionNumber(v);
+                    scrollToQuestion(v);
+                  }}
+                  searchError={searchError}
+                />
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}>
+                  <TopBar.GoToListButton onClick={() => navigate("/tutor-exam-list")} />
+                  <TopBar.SaveButton label={examData ? "Save Changes" : "Save Exam"} />
+                </Box>
+              </>
+            )}
+          </form>
+        </Paper>
+
+        <TopBar.ScrollTopFab show={showScroll} onClick={scrollTop} />
+
+        <Snackbar
+          open={isSnackbarOpen}
+          autoHideDuration={4000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         >
-          <MuiAlert onClose={handleCloseSnackbar} severity="success" elevation={6} variant="filled" sx={{ backgroundColor: "transparent" }}>
-            {snackbarMessage}
-          </MuiAlert>
-        </motion.div>
-      </Snackbar>
-    </Box>
+          <motion.div
+            animate={{ backgroundColor: ["#c8e6c9", "#a5d6a7", "#c8e6c9"] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <MuiAlert onClose={handleCloseSnackbar} severity="success" elevation={6} variant="filled" sx={{ backgroundColor: "transparent" }}>
+              {snackbarMessage}
+            </MuiAlert>
+          </motion.div>
+        </Snackbar>
+      </Box>
+      {isSaving && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          backdropFilter: "blur(2px)"
+        }}>
+          <div style={{
+            background: "#fff",
+            borderRadius: 12,
+            padding: "20px 24px",
+            minWidth: 260,
+            boxShadow: "0 8px 30px rgba(0,0,0,0.2)",
+            textAlign: "center",
+            fontFamily: "inherit"
+          }}>
+            <div className="loader" style={{
+              width: 36, height: 36, margin: "0 auto 12px",
+              border: "4px solid #e5e7eb",
+              borderTopColor: "#3b82f6",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite"
+            }} />
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Saving exam…</div>
+            <div style={{ fontSize: 14, color: "#555" }}>Please wait and don’t close this tab.</div>
+          </div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+    </>
   );
 };
 
